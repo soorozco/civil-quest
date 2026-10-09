@@ -1,0 +1,1284 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Civil Quest</title>
+<meta name="description" content="Videojuego pixel art para aprender las 8 Acciones Esenciales para la Seguridad del Paciente. Juégalo desde tu celular.">
+<meta property="og:title" content="Civil Quest · Guardianes de la Seguridad del Paciente">
+<meta property="og:description" content="Aprende las 8 Acciones Esenciales para la Seguridad del Paciente jugando un turno nocturno. ¡Vence al Auditor!">
+<meta property="og:image" content="https://soorozco.github.io/civil-quest/img/03-mano-infectada.png">
+<meta property="og:url" content="https://soorozco.github.io/civil-quest/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#141526">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141526; --panel:#1f2140; --panel2:#2a2d55; --ink:#f4f4f4; --muted:#b3b9d1;
+  --accent:#ffcd75; --ok:#38b764; --bad:#e43b44; --teal:#2a9d8f; --line:#0b0c18;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#141526; } }
+:root[data-theme="dark"]{ --bg:#141526; }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'VT323',monospace;font-size:22px;line-height:1.15}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:12px 16px 24px;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer}
+.px{font-family:'Press Start 2P',monospace}
+#app{width:100%;max-width:960px}
+#hud{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap}
+#hud .title{font-family:'Press Start 2P';font-size:12px;color:var(--accent);letter-spacing:1px}
+#medals{display:flex;gap:4px}
+.medal{width:22px;height:22px;border:2px solid var(--line);background:#3a3d6b;display:grid;place-items:center;font-family:'Press Start 2P';font-size:8px;color:#6b70a8}
+.medal.on{background:var(--accent);color:#5a3a00;box-shadow:inset -3px -3px 0 #e09a2a}
+.hbtn{background:var(--panel2);color:var(--ink);border:2px solid var(--line);box-shadow:inset -2px -2px 0 #15172e;font-family:'Press Start 2P';font-size:9px;padding:7px 8px}
+#stage{position:relative;width:100%;aspect-ratio:320/176;border:4px solid var(--line);box-shadow:0 0 0 4px #3a3d6b, 0 10px 0 4px #0008;background:#000}
+#world{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+#dialog{position:absolute;left:3%;right:3%;bottom:4%;background:#fff;color:#1a1c2c;border:4px solid var(--line);box-shadow:inset -4px -4px 0 #c9cfe0;padding:10px 14px 12px;display:none;font-size:clamp(17px,2.6vw,24px);cursor:pointer}
+#dialog .who{font-family:'Press Start 2P';font-size:clamp(8px,1.2vw,11px);color:#b13e53;margin-bottom:6px}
+#dialog .more{position:absolute;right:10px;bottom:6px;font-family:'Press Start 2P';font-size:10px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+#hint{margin-top:10px;color:var(--muted);font-size:18px;text-align:center}
+#pad{display:none;margin-top:14px;justify-content:space-between;align-items:center;user-select:none;-webkit-user-select:none}
+.dpad{display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px)}
+.dpad button,.abtn{background:#3a3d6b;border:3px solid var(--line);color:#fff;font-family:'Press Start 2P';font-size:14px;touch-action:none}
+.dpad button:active,.abtn:active{background:#5d62a8}
+.abtn{width:84px;height:84px;border-radius:50%;background:#b13e53;font-size:18px}
+@media (pointer:coarse){ #pad{display:flex} #hint .kb{display:none} }
+/* Title */
+#title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2%;background:linear-gradient(#2b1d3d,#141526);text-align:center;padding:2%}
+#title canvas{height:44%;width:auto;max-width:80%;image-rendering:pixelated;border:3px solid var(--line)}
+#title h1{font-family:'Press Start 2P';font-size:clamp(18px,4.4vw,40px);margin:0;color:var(--accent);text-shadow:4px 4px 0 #b13e53,8px 8px 0 #0008}
+#title .sub{font-family:'Press Start 2P';font-size:clamp(7px,1.3vw,11px);color:#9fd3e8}
+#title .start{font-family:'Press Start 2P';font-size:clamp(9px,1.6vw,14px);background:var(--ok);color:#0b2a14;border:4px solid var(--line);padding:10px 16px;box-shadow:inset -4px -4px 0 #257a45;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{transform:scale(1.05)}}
+/* Room overlay */
+#room{position:fixed;inset:0;background:#0b0c18e8;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:16px;z-index:10}
+#room.show{display:flex}
+.panel{width:100%;max-width:780px;background:var(--panel);border:4px solid var(--line);box-shadow:0 0 0 4px var(--rc,#3a3d6b),0 12px 0 4px #0008;margin:12px 0 40px}
+.rhead{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--rc,#3a3d6b);border-bottom:4px solid var(--line)}
+.rhead .rt{font-family:'Press Start 2P';font-size:clamp(8px,1.6vw,12px);flex:1;line-height:1.5;text-shadow:2px 2px 0 #0006}
+.rhead .rp{font-family:'Press Start 2P';font-size:9px;background:#0006;padding:5px 7px}
+.rhead button{background:#0006;color:#fff;border:2px solid var(--line);font-family:'Press Start 2P';font-size:10px;padding:5px 7px}
+#rbody{padding:16px}
+.npc{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px}
+.npc canvas{image-rendering:pixelated;flex:none;background:#2a2d55;border:3px solid var(--line)}
+.bubble{background:#fff;color:#1a1c2c;border:3px solid var(--line);padding:10px 12px;position:relative;flex:1;font-size:22px;min-height:80px}
+.bubble .who{font-family:'Press Start 2P';font-size:9px;color:#b13e53;margin-bottom:6px}
+.q{font-size:25px;margin:4px 0 12px;color:#fff}
+.q small{display:block;color:var(--muted);font-size:19px;margin-top:4px}
+.opts{display:grid;gap:8px}
+.opt{text-align:left;background:var(--panel2);color:var(--ink);border:3px solid var(--line);box-shadow:inset -3px -3px 0 #15172e;padding:10px 12px;font-size:21px;line-height:1.1}
+.opt:hover:not(:disabled){background:#3a3e75;transform:translateX(3px)}
+.opt.right{background:var(--ok);color:#06210f;box-shadow:inset -3px -3px 0 #257a45}
+.opt.wrong{background:#5a1f2a;color:#f3b1b9;text-decoration:line-through;animation:shake .3s}
+.opt:disabled{cursor:default}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.fb{margin-top:12px;padding:10px 12px;border:3px solid var(--line);font-size:21px}
+.fb.ok{background:#173b25;border-color:#38b764}
+.fb.bad{background:#3b171e;border-color:#e43b44}
+.fb b{font-family:'Press Start 2P';font-size:10px;display:block;margin-bottom:6px}
+.next{margin-top:14px;display:block;margin-left:auto;font-family:'Press Start 2P';font-size:11px;background:var(--accent);color:#3a2400;border:3px solid var(--line);padding:10px 14px;box-shadow:inset -3px -3px 0 #e09a2a}
+.next:hover{transform:translateY(-2px)}
+.seq{display:flex;flex-wrap:wrap;gap:6px;min-height:46px;padding:8px;border:3px dashed #4a4f8a;margin-bottom:12px}
+.seq .chip{background:var(--ok);color:#06210f;border:3px solid var(--line);padding:6px 9px;font-size:20px}
+.seq .chip i{font-style:normal;font-family:'Press Start 2P';font-size:9px;margin-right:6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.match .opt.sel{outline:3px solid var(--accent)}
+.match .opt.done{filter:saturate(.85)}
+.swatch{display:inline-block;width:18px;height:28px;border:3px solid var(--line);vertical-align:middle;margin-right:8px;position:relative}
+.swatch:after{content:'';position:absolute;left:3px;right:3px;top:-8px;height:6px;background:#ddd;border:2px solid var(--line);border-bottom:0}
+.card{background:#fff;color:#1a1c2c;border:4px solid var(--line);padding:14px;font-size:23px;margin-bottom:12px;box-shadow:inset -4px -4px 0 #d6dbea}
+.card .tag{font-family:'Press Start 2P';font-size:9px;color:#888;margin-bottom:6px}
+.buckets{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.bucket{font-family:'Press Start 2P';font-size:10px;line-height:1.5;padding:14px 8px;border:3px solid var(--line);color:#fff;box-shadow:inset -3px -3px 0 #0005}
+.band{display:flex;gap:10px;align-items:center}
+.band .wr{flex:none;background:#fff;color:#1a1c2c;border:3px solid var(--line);border-left:10px solid #9fd3e8;padding:4px 10px;font-size:19px;line-height:1.05;min-width:0}
+.band .wr b{font-size:20px}
+.band .wr.blur{filter:blur(1.4px)}
+.order{background:#fffbe6;color:#3a2400;border:3px solid var(--line);padding:10px 12px;margin-bottom:12px;font-size:21px}
+.order .tag{font-family:'Press Start 2P';font-size:9px;color:#b13e53;margin-bottom:4px}
+canvas.game{width:100%;image-rendering:pixelated;border:4px solid var(--line);display:block;touch-action:manipulation;cursor:crosshair}
+.bar{height:16px;border:3px solid var(--line);background:#2a2d55;margin:8px 0}
+.bar > div{height:100%;background:var(--accent);transition:width .1s linear}
+.stats{display:flex;justify-content:space-between;font-family:'Press Start 2P';font-size:10px;margin:8px 0;gap:8px;flex-wrap:wrap}
+.found{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.found span{background:var(--ok);color:#06210f;border:3px solid var(--line);padding:3px 8px;font-size:18px}
+.result{text-align:center}
+.stars{font-size:54px;letter-spacing:6px;color:var(--accent);text-shadow:3px 3px 0 #b13e53;margin:6px 0}
+.stars .off{color:#3a3d6b;text-shadow:none}
+.dato{text-align:left;background:#fffbe6;color:#3a2400;border:4px solid var(--line);padding:12px 14px;margin:14px 0;box-shadow:inset -4px -4px 0 #f0dc9a}
+.dato h4{font-family:'Press Start 2P';font-size:10px;margin:0 0 8px;color:#b13e53}
+.dato ul{margin:0;padding-left:20px}
+.dato li{margin:3px 0}
+.bigmedal{display:inline-grid;place-items:center;width:90px;height:90px;border-radius:50%;background:var(--accent);border:5px solid var(--line);box-shadow:inset -6px -6px 0 #e09a2a;font-family:'Press Start 2P';font-size:26px;color:#5a3a00;animation:pop .5s}
+@keyframes pop{0%{transform:scale(0) rotate(-90deg)}80%{transform:scale(1.15)}}
+.hp{display:flex;align-items:center;gap:8px;font-family:'Press Start 2P';font-size:9px}
+.hp .bar{flex:1;margin:0}
+.hp .bar > div{background:var(--bad)}
+.hearts{font-size:28px;color:var(--bad);letter-spacing:2px}
+.bossrow{display:flex;gap:14px;align-items:center;margin-bottom:12px}
+.hit{animation:hit .35s}
+@keyframes hit{20%{transform:translate(-8px,2px);filter:brightness(3)}60%{transform:translate(8px,-2px)}}
+.cert{background:#fffdf3;color:#2a1a0a;border:10px double #b8862b;padding:26px 20px;text-align:center;margin-bottom:12px}
+.cert h2{font-family:'Press Start 2P';font-size:clamp(11px,2.2vw,17px);color:#7a1f2b;margin:6px 0 14px;line-height:1.6}
+.cert .nm{font-size:40px;border-bottom:3px solid #b8862b;display:inline-block;padding:0 20px;margin:8px 0}
+.cert ol{text-align:left;display:inline-block;margin:10px auto;font-size:20px}
+input.name{font-family:'VT323';font-size:26px;padding:8px 10px;border:3px solid var(--line);width:100%;max-width:420px}
+.foot{color:#6b70a8;font-size:16px;margin-top:18px;text-align:center;max-width:760px}
+@media (max-width:560px){ .cols{grid-template-columns:1fr} .npc canvas{width:72px!important;height:96px!important} .q{font-size:22px} .opt{font-size:19px}}
+@media print{ body *{visibility:hidden} .cert,.cert *{visibility:visible} .cert{position:fixed;inset:20px} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="title">CIVIL QUEST</div>
+    <div id="medals"></div>
+    <div style="display:flex;gap:6px">
+      <button class="hbtn" id="mute">♪ ON</button>
+      <button class="hbtn" id="reset">REINICIAR</button>
+    </div>
+  </div>
+  <div id="stage">
+    <canvas id="world" width="320" height="176"></canvas>
+    <div id="dialog"><div class="who"></div><div class="txt"></div><div class="more">▼</div></div>
+    <div id="title">
+      <canvas id="facade" width="160" height="72"></canvas>
+      <h1>CIVIL QUEST</h1>
+      <div class="sub">GUARDIANES DE LA SEGURIDAD DEL PACIENTE<br><br>HOSPITAL CIVIL DE GUADALAJARA · TURNO NOCTURNO</div>
+      <button class="start" id="startBtn">▶ INICIAR GUARDIA</button>
+    </div>
+  </div>
+  <div id="pad">
+    <div class="dpad">
+      <span></span><button data-k="up">▲</button><span></span>
+      <button data-k="left">◀</button><span></span><button data-k="right">▶</button>
+      <span></span><button data-k="down">▼</button><span></span>
+    </div>
+    <button class="abtn" data-k="a">A</button>
+  </div>
+  <div id="hint"><span class="kb">Muévete con <b>flechas / WASD</b> · Interactúa con <b>ESPACIO / ENTER</b> · </span>También puedes tocar una puerta para ir directo.</div>
+  <div class="foot">Juego educativo no oficial basado en las <i>Acciones Esenciales para la Seguridad del Paciente</i> (CSG / DGCES, actualización junio 2023). Ante cualquier duda, manda el reglamento interno de tu hospital… y la Jefa Chayito.</div>
+</div>
+
+<div id="room"><div class="panel" id="panel">
+  <div class="rhead"><span class="rt" id="rtitle"></span><span class="rp" id="rprog"></span><button id="rclose">✕</button></div>
+  <div id="rbody"></div>
+</div></div>
+
+<script>
+/* ============ UTIL ============ */
+const $ = s => document.querySelector(s);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const KEY = 'civilquest_v1';
+function loadSave(){ try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch(e){ return null; } }
+let save = loadSave() || { done:{}, boss:false, intro:false, name:'' };
+function persist(){ try { localStorage.setItem(KEY, JSON.stringify(save)); } catch(e){} }
+
+/* ============ AUDIO ============ */
+let AC = null, muted = false;
+function beep(f, d, type='square', v=0.05, delay=0){
+  if (muted) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const t = AC.currentTime + delay, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + .02);
+  } catch(e){}
+}
+const sfx = {
+  ok(){ beep(660,.08); beep(990,.14,'square',.05,.08); },
+  bad(){ beep(150,.28,'sawtooth',.06); },
+  blip(){ beep(880,.04,'square',.03); },
+  pop(){ beep(500+Math.random()*500,.05,'triangle',.06); },
+  door(){ beep(220,.06); beep(330,.08,'square',.05,.06); },
+  medal(){ [523,659,784,1047].forEach((f,i)=>beep(f,.16,'square',.05,i*.11)); },
+  boss(){ [196,185,175,165].forEach((f,i)=>beep(f,.2,'sawtooth',.05,i*.18)); },
+};
+$('#mute').onclick = () => { muted = !muted; $('#mute').textContent = muted ? '♪ OFF' : '♪ ON'; };
+
+/* ============ SPRITES ============ */
+const PAL = { k:'#1a1c2c', h:'#4a2d1e', s:'#f2b48a', w:'#f4f4f4', b:'#2a9d8f', B:'#1d5e57', y:'#ffcd75', r:'#c0394b', G:'#38b764', g:'#8b9bb4' };
+const BODY = [
+"..kbbwwbbk..",
+".kbbbwwbbbk.",
+"kbbbbbbbbbbk",
+"kbbbbbbbybbk",
+"ksbbbbbbbbsk",
+".kBBBBBBBBk.",
+];
+const LEGS_A = [".kBBBkkBBBk.", ".kBBk..kBBk.", ".kkkk..kkkk."];
+const LEGS_B = [".kBBBBBBBBk.", "..kBk..kBk..", "..kk....kk.."];
+const HEAD_F = ["...kkkkkk...","..khhhhhhk..","..khsssshk..","..kskssksk..","..kssssssk..","..kssrrssk..","...kssssk..."];
+const HEAD_B = ["...kkkkkk...","..khhhhhhk..","..khhhhhhk..","..khhhhhhk..","..khhhhhhk..","..khhhhhhk..","...kssssk..."];
+const HEAD_S = ["...kkkkkk...","..khhhhhhk..","..khhhhsssk.","..khhhskssk.","..khhsssssk.","..khssrssk..","...kssssk..."];
+const SPR = {
+  down:[HEAD_F.concat(BODY, LEGS_A), HEAD_F.concat(BODY, LEGS_B)],
+  up:[HEAD_B.concat(BODY, LEGS_A), HEAD_B.concat(BODY, LEGS_B)],
+  side:[HEAD_S.concat(BODY, LEGS_A), HEAD_S.concat(BODY, LEGS_B)],
+};
+const GERM = ["..GGGG..",".GGGGGG.","GwkGGwkG","GGGGGGGG","GGkkkkGG",".GGGGGG.","G.G..G.G"];
+const PALS = {
+  player:{},
+  jefa:{ b:'#f4f4f4', B:'#dfe3ee', h:'#2b2b2b', y:'#2a9d8f' },
+  patient:{ b:'#9fd3e8', B:'#9fd3e8', h:'#c2c3c7', y:'#ffffff' },
+  limpieza:{ b:'#8e5bb5', B:'#5d3a7a', h:'#6b3e26' },
+  auditor:{ b:'#3a4466', B:'#262b44', h:'#c0cbdc', w:'#e43b44', y:'#f4f4f4' },
+  cirujano:{ b:'#3e8948', B:'#265c42', h:'#3e8948', y:'#f4f4f4' },
+  farma:{ b:'#f4f4f4', B:'#3a4466', h:'#733e39', y:'#e43b44' },
+  medico:{ b:'#f4f4f4', B:'#3a4466', h:'#1a1c2c', y:'#9fd3e8' },
+  chef:{ b:'#f4f4f4', B:'#733e39', h:'#f4f4f4', y:'#e43b44' },
+};
+const sprCache = {};
+function spriteCanvas(rows, pal, scale=1){
+  const key = rows.join('|') + JSON.stringify(pal) + scale;
+  if (sprCache[key]) return sprCache[key];
+  const c = document.createElement('canvas'); c.width = rows[0].length*scale; c.height = rows.length*scale;
+  const x = c.getContext('2d');
+  rows.forEach((r,j) => [...r].forEach((ch,i) => { if (ch === '.') return; x.fillStyle = (pal && pal[ch]) || PAL[ch] || '#f0f'; x.fillRect(i*scale, j*scale, scale, scale); }));
+  return sprCache[key] = c;
+}
+function portrait(palName, scale=7){
+  const c = document.createElement('canvas');
+  const src = spriteCanvas(SPR.down[0], PALS[palName] || {}, 1);
+  c.width = 14*scale; c.height = 18*scale;
+  c.style.width = (14*scale) + 'px'; c.style.height = (18*scale) + 'px';
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  x.drawImage(src, 1*scale, 1*scale, 12*scale, 16*scale);
+  if (palName === 'auditor'){ // clipboard + glasses
+    x.fillStyle = '#733e39'; x.fillRect(9*scale, 10*scale, 4*scale, 5*scale);
+    x.fillStyle = '#f4f4f4'; x.fillRect(9.5*scale, 11*scale, 3*scale, 3.5*scale);
+    x.fillStyle = '#1a1c2c'; x.fillRect(4*scale, 4*scale, 2*scale, scale); x.fillRect(7*scale, 4*scale, 2*scale, scale); x.fillRect(6*scale,4*scale,scale,scale/2);
+  }
+  if (palName === 'cirujano'){ x.fillStyle='#9fd3e8'; x.fillRect(4*scale,5.5*scale,6*scale,1.5*scale); }
+  if (palName === 'jefa'){ x.fillStyle='#f4f4f4'; x.fillRect(4*scale,0,6*scale,1.6*scale); x.fillStyle='#e43b44'; x.fillRect(6.5*scale,.3*scale,scale,scale); }
+  return c;
+}
+
+/* ============ CONTENT: 8 ACCIONES ESENCIALES ============ */
+const ROOMS = [
+{ id:1, short:'ID', title:'AE 1 · Identificación correcta del paciente', color:'#b13e53', npc:'jefa', who:'JEFA CHAYITO',
+  intro:[
+    'Aquí tenemos a TRES señores llamados José Luis Hernández. Sí, en serio. En Jalisco eso es martes.',
+    'Tu misión: identificar a cada paciente con los 2 identificadores: NOMBRE COMPLETO y FECHA DE NACIMIENTO. Nada de "el de la cama 7".'
+  ],
+  stages:[
+    { type:'choice', cls:'bandopt',
+      pre:'<div class="order"><div class="tag">ORDEN MÉDICA</div>Ceftriaxona 1 g intravenoso para:<br><b>JOSÉ LUIS HERNÁNDEZ RUIZ — 14/02/1961</b></div>',
+      q:'¿A quién le pones el antibiótico? Revisa las pulseras.',
+      opts:[
+        { ok:true, t:'<div class="band"><div class="wr"><b>José Luis Hernández Ruiz</b><br>FN: 14/02/1961</div><span>Cama 4 · "el del bigote"</span></div>', fb:'¡Exacto! Coinciden los DOS identificadores. El bigote no cuenta, pero es bonito.' },
+        { t:'<div class="band"><div class="wr"><b>José Luis Hernández Ruiz</b><br>FN: 14/02/1991</div><span>Cama 7 · "el sobrino"</span></div>', fb:'Mismo nombre, ¡otro siglo! Por eso el nombre solo NO basta: siempre confirma también la fecha de nacimiento.' },
+        { t:'<div class="band"><div class="wr"><b>José Luis Hernández Ríos</b><br>FN: 14/02/1961</div><span>Cama 9 · "el primo"</span></div>', fb:'Ruiz ≠ Ríos. El nombre COMPLETO importa, letra por letra.' },
+        { t:'<div class="band"><div class="wr blur"><b>Jos3 L??s H3rn...</b><br>FN: ??/??/19??</div><span>Cama 4-B · pulsera ilegible</span></div>', fb:'Pulsera ilegible = NO se hace ningún procedimiento hasta corroborar datos, y se reemplaza la pulsera.' },
+      ]},
+    { type:'choice', q:'¿Cuáles son los 2 identificadores estandarizados?',
+      opts:[
+        { ok:true, t:'Nombre completo + fecha de nacimiento', fb:'Correcto. Y se escriben en TODOS los documentos que se generen durante la atención.' },
+        { t:'Número de cama + diagnóstico', fb:'Nunca se usan cama, habitación, servicio, diagnóstico, médico tratante ni horario como identificadores. Los pacientes se cambian de cama; su fecha de nacimiento no.' },
+        { t:'Nombre + "el señor que siempre pide gelatina"', fb:'Encantador, pero no. La gelatina no es un identificador oficial.' },
+        { t:'Número de expediente + color de la bata', fb:'Todas las batas son del mismo color. Ese es justo el problema.' },
+      ]},
+    { type:'choice', q:'Llega a Urgencias un paciente inconsciente, sin documentos ni familiares. ¿Cómo lo identificas?',
+      opts:[
+        { ok:true, t:'"Desconocido" + género + edad aparente + señas particulares + fecha/hora de ingreso + cómo llegó (patrulla, MP…)', fb:'¡Así es! Y si llegan varios, se numeran en orden progresivo: Desconocido 1, Desconocido 2…' },
+        { t:'Le pongo "Juan Pérez" para que no quede vacío', fb:'Inventar nombres genera confusiones gravísimas. Se usa la palabra DESCONOCIDO y los datos descriptivos.' },
+        { t:'No lo identifico hasta que despierte', fb:'Se le identifica desde que solicita la atención. Si su vida está en riesgo, se prioriza la atención, pero luego se identifica.' },
+        { t:'"El de la camiseta de las Chivas"', fb:'Media Guadalajara trae esa camiseta. Siguiente.' },
+      ]},
+    { type:'choice', q:'Acaba de nacer un bebé por cesárea. ¿Cómo se identifica?',
+      opts:[
+        { ok:true, t:'Dos brazaletes: muñeca derecha y tobillo izquierdo, con apellidos de la madre, fecha de nacimiento y sexo', fb:'¡Correcto! Inmediatamente después del parto/cesárea y confirmando con la madre o el expediente.' },
+        { t:'Un brazalete con el nombre que eligieron los papás', fb:'Muchas veces todavía no hay nombre ("¿Kevin? ¿Brayan?"). Se usan los apellidos de la madre.' },
+        { t:'Con un plumón en la frente', fb:'NO. Por favor, no.' },
+        { t:'No hace falta: todos los bebés se ven distintos', fb:'Spoiler: a las 3 a. m. todos los bebés se ven igual.' },
+      ]},
+    { type:'choice', q:'¿Cuándo DEBES verificar la identidad justo antes?',
+      opts:[
+        { ok:true, t:'Medicamentos, infusiones, transfusiones, procedimientos, estudios, traslados, dietas, hemodiálisis y biológicos', fb:'¡Todo eso son momentos críticos! Hasta la dieta: no querrás darle pozole al paciente en ayuno.' },
+        { t:'Solo al ingreso; después ya lo conozco', fb:'La confianza mata. Se verifica JUSTO ANTES de cada momento crítico.' },
+        { t:'Solo si el paciente se ve "sospechoso"', fb:'No hay pacientes sospechosos, solo verificaciones pendientes.' },
+      ]},
+  ],
+  dato:['2 identificadores: <b>NOMBRE COMPLETO + FECHA DE NACIMIENTO</b>.','Nunca: cama, habitación, servicio, diagnóstico, médico ni horario.','Pulsera ilegible o duda → <b>no se hace nada</b> hasta corroborar.','Verificar <b>justo antes</b> de cada momento crítico.','Soluciones IV, sondas y catéteres también llevan membrete.']
+},
+{ id:2, short:'COM', title:'AE 2 · Comunicación efectiva', color:'#3b5dc9', npc:'medico', who:'DR. TELÉFONO DESCOMPUESTO',
+  intro:[
+    '*ksshh* ¡Ponle 10 unidades de… *ksshh*… al de la… *ksshh*! ¿Me copias?',
+    'Las órdenes verbales y por teléfono son las que más se prestan a error. Hoy aprenderás a no jugar al teléfono descompuesto.'
+  ],
+  stages:[
+    { type:'order', q:'Te dictan una indicación por teléfono. Ordena el protocolo (toca en orden):',
+      items:['Escuchar','Escribir','Leer','Confirmar'],
+      why:'<b>Escuchar → Escribir → Leer → Confirmar.</b> Quien emite confirma que es correcto, y el médico la valida con nombre y firma. En urgencias se vale la versión rápida: <b>Escuchar → Repetir → Confirmar</b>.' },
+    { type:'order', q:'Entregas guardia al turno de la mañana con la técnica SAER. Ordénala:',
+      items:['Situación','Antecedentes','Evaluación','Recomendación'],
+      why:'<b>SAER</b> (SBAR en inglés). Situación: identificación y problema actual · Antecedentes: ingreso, diagnóstico, medicamentos, alergias · Evaluación: qué crees que pasa · Recomendación: qué sigue y cuándo.' },
+    { type:'choice', q:'¿Cuál dosis está escrita correctamente?',
+      opts:[
+        { ok:true, t:'Haloperidol 0.5 mg', fb:'Cero antes del punto y espacio entre nombre y dosis. ¡Perfecto!' },
+        { t:'Haloperidol .5 mg', fb:'Sin el cero, ".5" se lee "5". ¡Diez veces la dosis! Siempre 0.5.' },
+        { t:'Haloperidol 5.0 mg', fb:'Con número entero NUNCA pongas ".0": "5.0" se puede leer "50".' },
+        { t:'Paracetamol500 mg', fb:'Siempre deja espacio entre el medicamento y la dosis, sobre todo en los terminados en "-ol" (la "l" parece un "1").' },
+      ]},
+    { type:'choice', q:'El doctor escribió: "Insulina 10 U SC c/24h". ¿Qué está mal?',
+      opts:[
+        { ok:true, t:'Nunca se abrevian "unidades", "subcutáneo" ni "una vez al día"', fb:'Exacto. "U" puede parecer "0" o "4" → 10 U se lee 100. Se escribe completo: 10 unidades, subcutánea.' },
+        { t:'Nada, así se entiende perfecto', fb:'Se entiende… hasta que alguien lee "100". No se abrevian: unidad, microgramos, día, IV, IM, SC, más, durante, por…' },
+        { t:'Le faltó escribirlo con pluma de gel', fb:'La pluma está bien. Las abreviaturas, no.' },
+      ]},
+    { type:'choice', q:'¿Cómo se escribe "mil unidades"?',
+      opts:[
+        { ok:true, t:'1,000 unidades', fb:'Con coma para separar millares (o con palabras: "mil").' },
+        { t:'1000 U', fb:'Doble error: sin coma de millares y con abreviatura.' },
+        { t:'1.000 unidades', fb:'El punto se confunde con decimal. Se usa coma para los millares.' },
+      ]},
+    { type:'choice', q:'El laboratorio detecta un potasio críticamente alto. ¿Qué hace?',
+      opts:[
+        { ok:true, t:'Notifica de inmediato al personal clínico responsable con Escuchar-Escribir-Leer-Confirmar, y se registra en el expediente', fb:'¡Correcto! Los valores críticos no esperan.' },
+        { t:'Lo sube al sistema y que alguien lo vea mañana', fb:'Un valor crítico se notifica INMEDIATAMENTE.' },
+        { t:'Manda un sticker de "😬" al grupo de WhatsApp', fb:'Expresivo, pero no es el protocolo.' },
+      ]},
+  ],
+  dato:['Órdenes verbales/telefónicas: <b>Escuchar → Escribir → Leer → Confirmar</b>.','Urgencias: <b>Escuchar → Repetir → Confirmar</b>, y se transcribe y firma.','Traspaso de pacientes con <b>SAER</b>.','Recetas: letra legible, <b>0.5</b> (no .5), <b>30</b> (no 30.0), <b>1,000</b>, sin abreviaturas.']
+},
+{ id:3, short:'MED', title:'AE 3 · Seguridad en el proceso de medicación', color:'#e07b39', npc:'farma', who:'DON AMPOLLETO (FARMACIA)',
+  intro:[
+    '¡Bienvenido a mi farmacia! Aquí cada ampolleta tiene su color, como los camiones de Guadalajara… pero con lógica.',
+    'Si confundes el cloruro de potasio con otra cosa, no es un "ups", es un evento centinela. ¡A practicar!'
+  ],
+  stages:[
+    { type:'match', q:'Une cada electrolito concentrado con el color de su etiqueta (NOM-072):',
+      pairs:[
+        ['Bicarbonato de sodio 7.5%','#3b5dc9','Azul'],
+        ['Sulfato de magnesio 10%','#38b764','Verde'],
+        ['Gluconato de calcio 10%','#ffcd75','Amarillo'],
+        ['Cloruro de potasio 14.9%','#e43b44','Rojo'],
+        ['Fosfato de potasio 15%','#f08a24','Naranja'],
+        ['Cloruro de sodio 17.7%','#f4f4f4','Blanco'],
+      ],
+      why:'¡Combo completo! Truco: el <b>potasio</b> (KCl) es <b>rojo</b>, como alerta máxima.' },
+    { type:'sort', q:'En la receta, ¿qué barrera visual lleva cada medicamento?',
+      buckets:[['MAYÚSCULAS','#b13e53'],['Subrayado','#3b5dc9'],['Ambas','#5d3a7a']],
+      items:[
+        { t:'Bicarbonato de sodio (alto riesgo)', b:0, why:'Alto riesgo → LETRAS MAYÚSCULAS: BICARBONATO DE SODIO.' },
+        { t:'Digoxina / Dorixina (se parecen: LASA)', b:1, why:'LASA (nombre o aspecto parecido) → subrayado.' },
+        { t:'Enoxaparina 20 mg vs 60 mg (alto riesgo y LASA)', b:2, why:'Alto riesgo + LASA → MAYÚSCULAS y subrayado.' },
+        { t:'Amikacina 100 mg vs 500 mg (LASA)', b:1, why:'Misma presentación, distinta dosis: LASA → subrayado.' },
+        { t:'Insulina NPH vs Insulina Regular (alto riesgo y LASA)', b:2, why:'Insulinas: alto riesgo y LASA → ambas barreras.' },
+      ]},
+    { type:'choice', q:'En el almacén, ¿qué alerta de color llevan?',
+      opts:[
+        { ok:true, t:'Alto riesgo = alerta ROJA · LASA = alerta AZUL', fb:'¡Exacto! Y el rojo NO se usa para caducidades ni otra semaforización.' },
+        { t:'Alto riesgo = verde · LASA = morado', fb:'Bonitos colores, pero no. Rojo para alto riesgo, azul para LASA.' },
+        { t:'Todos en rojo, por si acaso', fb:'Si todo es alerta, nada es alerta.' },
+      ]},
+    { type:'choice', q:'¿Cuál NO es uno de los "correctos" al administrar medicamentos?',
+      opts:[
+        { ok:true, t:'Signo zodiacal correcto', fb:'Jaja, correcto. Aunque los de Escorpión… no, nada.' },
+        { t:'Paciente correcto (2 identificadores)', fb:'Ese SÍ es un correcto. Busca el que no pertenece.' },
+        { t:'Dosis y vía correctas', fb:'Esos SÍ son correctos. También: medicamento, horario, velocidad de infusión, caducidad y registro.' },
+        { t:'Registro inmediato después de administrar', fb:'Ese SÍ es un correcto: fármaco, fecha, hora, dosis, vía y quién lo administró.' },
+      ]},
+    { type:'choice', q:'¿Qué medicamentos necesitan doble verificación (2 personas competentes)?',
+      opts:[
+        { ok:true, t:'Anestésicos, opioides, electrolitos concentrados, insulinas, anticoagulantes parenterales, citotóxicos y radiofármacos', fb:'¡Sí! Doble verificación al preparar y al administrar.' },
+        { t:'Solo los que son caros', fb:'El precio no es el criterio; el riesgo sí.' },
+        { t:'Ninguno, si llevas 20 años en el servicio', fb:'La experiencia ayuda, pero la doble verificación salva vidas igual.' },
+      ]},
+    { type:'choice', q:'Encuentras un medicamento caducado "apenas por 2 días". ¿Qué haces?',
+      opts:[
+        { ok:true, t:'No se usa. Está estrictamente prohibido usar insumos caducados', fb:'Correcto. Y recuerda: primeras caducidades, primeras salidas (PCPS).' },
+        { t:'Lo uso, dos días no es nada', fb:'Prohibido. No es yogurt.' },
+        { t:'Lo trasvaso a otro frasco para que no se note', fb:'¡Doble falta! El trasvase de medicamentos también está prohibido.' },
+      ]},
+  ],
+  dato:['Electrolitos: <b>azul</b> bicarbonato · <b>verde</b> magnesio · <b>amarillo</b> calcio · <b>rojo</b> KCl · <b>naranja</b> fosfato K · <b>blanco</b> NaCl 17.7%.','Alto riesgo en <b>MAYÚSCULAS</b> (alerta roja); LASA <u>subrayado</u> (alerta azul).','Correctos: paciente, medicamento, dosis, vía, velocidad, horario, caducidad y registro.','Doble verificación en alto riesgo. Nada caducado, nada trasvasado.']
+},
+{ id:4, short:'QX', title:'AE 4 · Seguridad en los procedimientos', color:'#3e8948', npc:'cirujano', who:'DR. BISTURÍ',
+  intro:[
+    'Bienvenido a mi quirófano. Aquí la pierna izquierda es la izquierda… DEL PACIENTE. Ya hubo confusiones.',
+    'Vamos a aplicar la Lista de Verificación para la Seguridad de la Cirugía (LVSC). Tres fases, cero sorpresas.'
+  ],
+  stages:[
+    { type:'sort', q:'¿En qué fase de la LVSC va cada acción?',
+      buckets:[['1 · ENTRADA (antes de la anestesia)','#3e8948'],['2 · TIEMPO FUERA (antes de la incisión)','#e07b39'],['3 · SALIDA (antes de salir de quirófano)','#3b5dc9']],
+      items:[
+        { t:'Confirmar con el paciente identidad, sitio, procedimiento y consentimiento', b:0, why:'Entrada: antes de la inducción anestésica.' },
+        { t:'Revisar que el oxímetro de pulso funcione', b:0, why:'Entrada: el anestesiólogo lo coloca y comprueba.' },
+        { t:'Alergias, vía aérea difícil y riesgo de hemorragia', b:0, why:'Entrada: hemorragia > 500 ml en adultos o > 7 ml/kg en niños.' },
+        { t:'Todo el equipo se presenta por nombre y función', b:1, why:'Tiempo fuera: sin omisiones, ni el instrumentista tímido.' },
+        { t:'Verificar profilaxis antibiótica', b:1, why:'Tiempo fuera: el anestesiólogo verifica que se haya aplicado.' },
+        { t:'Recuento de instrumental, textiles y agujas', b:2, why:'Salida: nadie quiere una gasa de recuerdo.' },
+        { t:'Etiquetar muestras con los 2 identificadores', b:2, why:'Salida: nombre completo, fecha de nacimiento, fecha de cirugía y descripción.' },
+      ]},
+    { type:'choice', q:'¿Con qué marcas el sitio quirúrgico?',
+      opts:[
+        { ok:true, t:'Con la marca estandarizada del hospital, sobre la piel, que no se borre con la asepsia', fb:'¡Sí! Y con participación del paciente (o su familiar si es menor o inconsciente).' },
+        { t:'Con una "X", como en los mapas del tesoro', fb:'La "X" está PROHIBIDA: genera confusión ("¿aquí sí o aquí NO?").' },
+        { t:'Con una carita feliz para relajar al paciente', fb:'Tierno, pero no estandarizado.' },
+        { t:'No marco; tengo excelente memoria', fb:'La memoria no es una barrera de seguridad.' },
+      ]},
+    { type:'choice', q:'Cirugía de catarata del ojo derecho. ¿Dónde va la marca?',
+      opts:[
+        { ok:true, t:'Por arriba de la ceja del lado correspondiente', fb:'¡Correcto! Así lo indica la AE 4 para cirugía oftalmológica.' },
+        { t:'En el párpado, con plumón', fb:'No: arriba de la ceja del lado correspondiente.' },
+        { t:'En la frente, al centro', fb:'¿Y de qué lado entonces? Arriba de la ceja del lado a operar.' },
+      ]},
+    { type:'choice', q:'¿Cuál de estos procedimientos FUERA del quirófano también requiere "Tiempo Fuera"?',
+      opts:[
+        { ok:true, t:'Transfusión de sangre y hemocomponentes', fb:'Sí: paciente, procedimiento, acceso vascular, grupo y Rh, y hemocomponente correctos.' },
+        { t:'Tomar la temperatura', fb:'No hace falta pausa para el termómetro. Sí para transfusiones, biopsias, catéteres centrales, hemodiálisis, contraste, etc.' },
+        { t:'Cambiar el canal de la tele', fb:'Eso lo decide el paciente. Sin tiempo fuera.' },
+      ]},
+  ],
+  dato:['Marca estandarizada sobre la piel, con el paciente. <b>Nunca una "X"</b>.','LVSC: <b>Entrada</b> (antes de anestesia) → <b>Tiempo fuera</b> (antes de incisión) → <b>Salida</b> (antes de salir).','La firman todos y se integra al expediente.','Tiempo fuera también en transfusiones, biopsias, catéteres, hemodiálisis, contraste…']
+},
+{ id:5, short:'MANOS', title:'AE 5 · Reducción del riesgo de IAAS', color:'#2a9d8f', npc:'jefa', who:'JEFA CHAYITO',
+  intro:[
+    'Las Infecciones Asociadas a la Atención de la Salud no llegan solas: llegan EN TUS MANOS.',
+    'Hoy combatiremos a los bichos: Staphy, Klebsi y el temible E. coli-ín. ¡Alcohol gel en mano!'
+  ],
+  stages:[
+    { type:'germs' },
+    { type:'order', q:'Ordena los 5 momentos de la higiene de manos (OMS):',
+      items:['Antes del contacto con el paciente','Antes de una tarea limpia / aséptica','Después de exposición a fluidos corporales','Después del contacto con el paciente','Después del contacto con el entorno del paciente'],
+      why:'Los <b>5 momentos</b>. Ojo con el 5: tocar la cama, el barandal o el monitor también cuenta, aunque no hayas tocado al paciente.' },
+    { type:'choice', q:'¿Cuál es la acción prioritaria del programa para reducir IAAS?',
+      opts:[
+        { ok:true, t:'La higiene de manos del personal clínico con la técnica de la OMS, en los 5 momentos', fb:'¡Exacto! Respaldada por la estrategia multimodal: infraestructura, capacitación, evaluación, recordatorios y cultura.' },
+        { t:'Darle antibiótico a todos por si acaso', fb:'Eso genera resistencia. El uso de antimicrobianos debe ser racional.' },
+        { t:'Usar guantes siempre y nunca lavarse', fb:'Los guantes NO sustituyen la higiene de manos.' },
+      ]},
+    { type:'choice', q:'¿Qué comité es el órgano técnico consultor para vigilar y controlar las IAAS?',
+      opts:[
+        { ok:true, t:'CODECIN', fb:'Comité para la Detección y Control de las IAAS, apoyado por la UVEH y el COCASEP.' },
+        { t:'El comité de la posada', fb:'Ese organiza el intercambio. Las IAAS son del CODECIN.' },
+        { t:'COFEPRIS', fb:'No. Dentro del hospital es el CODECIN (NOM-045).' },
+      ]},
+  ],
+  dato:['Prioridad: <b>higiene de manos</b>, técnica OMS, <b>5 momentos</b>.','Alcohol gel: 20–30 s · Agua y jabón: 40–60 s.','Guantes ≠ higiene de manos.','Comités: CODECIN, UVEH y COCASEP trabajan juntos.']
+},
+{ id:6, short:'CAÍDAS', title:'AE 6 · Reducción del riesgo de daño por caídas', color:'#c9a227', npc:'limpieza', who:'DOÑA MARY (INTENDENCIA)',
+  intro:[
+    '¡Mijo! Esta habitación es una trampa mortal. Hasta yo me resbalé y eso que traigo zapatos antiderrapantes.',
+    'Encuentra TODOS los riesgos de caída. Toca cada peligro en la imagen.'
+  ],
+  stages:[
+    { type:'spot' },
+    { type:'choice', q:'¿Cuándo se REEVALÚA el riesgo de caídas?',
+      opts:[
+        { ok:true, t:'En cada cambio de turno, de área o servicio, de estado de salud o de tratamiento', fb:'¡Correcto! La evaluación inicial se hace a TODOS los pacientes con una escala validada.' },
+        { t:'Solo al ingreso', fb:'El riesgo cambia: se reevalúa en cada cambio de turno, área, estado de salud o tratamiento.' },
+        { t:'Después de que se cae', fb:'Eso es como comprar el paraguas después del aguacero tapatío.' },
+      ]},
+    { type:'choice', q:'Don Chuy (82 años, recién operado) dice: "Ya estoy grande, voy solito al baño". ¿Qué haces?',
+      opts:[
+        { ok:true, t:'Lo acompaño, lo incorporo despacio y le explico por qué', fb:'¡Bien! Sin cambios bruscos de postura, y que siempre vaya acompañado según su condición.' },
+        { t:'Le digo "ándele pues" y sigo con mis notas', fb:'Paciente postrado + levantarse rápido = caída casi segura.' },
+        { t:'Lo amarro a la cama', fb:'La sujeción solo se usa si es necesaria y según el protocolo del hospital.' },
+      ]},
+    { type:'choice', q:'A pesar de todo, un paciente se cae. ¿Qué sigue?',
+      opts:[
+        { ok:true, t:'Atenderlo, registrar y notificar de inmediato (AE 7) y darle seguimiento clínico hasta su egreso', fb:'¡Exacto! Reportar no es acusar: es aprender.' },
+        { t:'Levantarlo y no decirle a nadie', fb:'Ocultarlo impide aprender y corregir. Se registra y notifica de inmediato.' },
+        { t:'Culpar al piso', fb:'El piso no tiene expediente.' },
+      ]},
+  ],
+  dato:['Evaluar a <b>todos</b> y reevaluar en cada cambio de turno, área, estado o tratamiento.','<b>Barandales arriba</b>, frenos puestos, timbre y luz al alcance.','Piso seco y señalizado; sin cables ni obstáculos.','Calzado cerrado antiderrapante; bastón/andadera cerca.','Si hay caída: registrar y notificar de inmediato.']
+},
+{ id:7, short:'EVENTOS', title:'AE 7 · Cuasifallas, eventos adversos y centinela', color:'#5d3a7a', npc:'auditor', who:'EL INSPECTOR AMIGABLE',
+  intro:[
+    'Tranquilo, no vengo a regañar a nadie. El registro de eventos es ANÓNIMO, VOLUNTARIO, CONFIDENCIAL y NO PUNITIVO.',
+    'Pero tienes que saber clasificarlos. ¿Cuasifalla, evento adverso o centinela? ¡A ver!'
+  ],
+  stages:[
+    { type:'sort', q:'Clasifica cada situación:',
+      buckets:[['CUASIFALLA (no llegó al paciente)','#3e8948'],['EVENTO ADVERSO (hubo daño)','#e07b39'],['EVENTO CENTINELA','#b13e53']],
+      items:[
+        { t:'Ibas a medicar al paciente equivocado, pero al revisar la pulsera te diste cuenta', b:0, why:'Cuasifalla: el error se detectó antes de llegar al paciente.' },
+        { t:'Farmacia surtió la dosis equivocada; enfermería lo notó antes de administrar', b:0, why:'Cuasifalla: la barrera funcionó. ¡Igual se reporta para aprender!' },
+        { t:'Paciente con alergia no verificada presenta una reacción al medicamento', b:1, why:'Evento adverso: hubo daño relacionado con la atención.' },
+        { t:'Paciente se cae de la cama y sufre un hematoma', b:1, why:'Evento adverso: daño evitable asociado a la atención.' },
+        { t:'Cirugía en la rodilla equivocada', b:2, why:'Centinela: cirugía en sitio, procedimiento o paciente incorrecto.' },
+        { t:'Se entrega un recién nacido a la familia equivocada', b:2, why:'Centinela: entrega de menor equivocado.' },
+        { t:'Muerte materna', b:2, why:'Centinela: siempre se registra, reporta y analiza.' },
+      ]},
+    { type:'choice', q:'¿Cómo es el registro de eventos adversos?',
+      opts:[
+        { ok:true, t:'Anónimo, voluntario, confidencial y no punitivo', fb:'¡Así es! La idea es aprender de los errores, no buscar culpables.' },
+        { t:'Público, con foto en el periódico mural', fb:'¡Para nada! Así nadie reportaría nada.' },
+        { t:'Obligatorio con descuento en la quincena', fb:'Es NO punitivo. Nadie pierde quincena por reportar.' },
+      ]},
+    { type:'choice', q:'Ocurrió un evento centinela. ¿En qué plazo se hace el análisis causa-raíz?',
+      opts:[
+        { ok:true, t:'En un periodo no mayor a 45 días', fb:'Correcto. Y los eventos adversos y cuasifallas se analizan por patrones y tendencias al menos cada 6 meses.' },
+        { t:'Cuando haya tiempo', fb:'Nunca hay tiempo. Por eso el límite: 45 días.' },
+        { t:'En un año, en la junta de diciembre', fb:'Demasiado tarde. Máximo 45 días.' },
+      ]},
+    { type:'choice', q:'¿Dónde se presentan los resultados para definir acciones de mejora?',
+      opts:[
+        { ok:true, t:'En el COCASEP (Comité de Calidad y Seguridad del Paciente)', fb:'¡Sí! Y luego al cuerpo directivo y al personal.' },
+        { t:'En el chisme del comedor', fb:'El comedor es para las tortas ahogadas, no para el análisis.' },
+        { t:'En ningún lado, se archivan', fb:'Un reporte archivado no previene el siguiente error.' },
+      ]},
+  ],
+  dato:['<b>Cuasifalla</b>: no llegó al paciente · <b>Adverso</b>: hubo daño · <b>Centinela</b>: muerte o daño grave inesperado.','Registro <b>anónimo, voluntario, confidencial y no punitivo</b>.','Centinela → análisis causa-raíz en <b>≤ 45 días</b>.','Patrones y tendencias al menos <b>cada 6 meses</b>, presentados en el COCASEP.']
+},
+{ id:8, short:'CULTURA', title:'AE 8 · Cultura de seguridad del paciente', color:'#2b7a9e', npc:'jefa', who:'JEFA CHAYITO',
+  intro:[
+    'La cultura de seguridad es lo que hacemos cuando NADIE nos está viendo. Como lavarse las manos a las 4 a. m.',
+    'Última prueba antes del Auditor. ¡Demuestra que lo traes en la sangre (correctamente identificada)!'
+  ],
+  stages:[
+    { type:'choice', q:'¿Cada cuándo se mide la cultura de seguridad del paciente?',
+      opts:[
+        { ok:true, t:'Anualmente', fb:'¡Correcto! Con el cuestionario que adaptó la DGCES a partir del de la AHRQ.' },
+        { t:'Cada sexenio', fb:'Demasiado espaciado. Es anual.' },
+        { t:'Cuando viene la certificación', fb:'La cultura no se maquilla para la visita. Se mide cada año.' },
+      ]},
+    { type:'choice', q:'¿Quién participa en la medición?',
+      opts:[
+        { ok:true, t:'Personal de TODOS los turnos, de forma anónima', fb:'¡Sí! Matutino, vespertino, nocturno y jornada acumulada. Todos cuentan.' },
+        { t:'Solo los jefes de servicio', fb:'La cultura la construyen todos, no solo los jefes.' },
+        { t:'Solo el turno matutino porque es el que se ve', fb:'El turno nocturno también existe… aunque a veces nadie nos vea.' },
+      ]},
+    { type:'choice', q:'Cometiste un error menor y nadie se dio cuenta. ¿Qué haces?',
+      opts:[
+        { ok:true, t:'Lo reporto: así el sistema aprende y no le pasa a otro', fb:'¡Eso es cultura de seguridad! Reportar es valiente, no vergonzoso.' },
+        { t:'Silbo y me hago el que no vio nada', fb:'El error volverá a ocurrir, tal vez con un daño mayor.' },
+        { t:'Culpo al residente de primer año', fb:'Pobre R1. No. Cultura NO punitiva.' },
+      ]},
+    { type:'choice', q:'Un compañero está a punto de saltarse la verificación de identidad. Tú…',
+      opts:[
+        { ok:true, t:'Se lo digo con respeto: "Oye, verifiquemos nombre y fecha de nacimiento"', fb:'¡Bravo! Hablar a tiempo es la mejor barrera de seguridad.' },
+        { t:'No digo nada, no es mi paciente', fb:'Todos los pacientes son nuestros pacientes.' },
+        { t:'Lo grabo y lo subo a TikTok', fb:'Viral, sí. Seguro, no. Y adiós confidencialidad.' },
+      ]},
+  ],
+  dato:['Medición <b>anual</b>, con el cuestionario de la DGCES (basado en AHRQ).','Participa de forma <b>anónima</b> el personal de <b>todos los turnos</b>.','Resultados → COCASEP → acciones de mejora → directivos y personal.','Cultura = reportar, hablar a tiempo y aprender sin culpar.']
+},
+];
+
+/* ============ WORLD ============ */
+const W = 320, H = 176;
+const cv = $('#world'), ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
+let mode = 'title';
+const player = { x:28, y:84, dir:'down', flip:false, anim:0, moving:false };
+const keys = {};
+let auto = null; // autopilot
+const DOOR_X = [40,104,168,232];
+const DOORS = ROOMS.map((r,i)=>({ room:r, side: i<4 ? 'top' : 'bottom', cx: DOOR_X[i%4] }));
+const DECOS = [
+  { k:'plant', x:64, y:46, w:14, h:12 },
+  { k:'fountain', x:132, y:46, w:14, h:12 },
+  { k:'bench', x:186, y:46, w:28, h:10 },
+  { k:'tortas', x:252, y:44, w:36, h:14 },
+  { k:'wheel', x:70, y:128, w:16, h:16 },
+  { k:'stretch', x:184, y:132, w:32, h:12 },
+];
+const NPCS = [
+  { id:'jefa', pal:'jefa', x:12, y:64, name:'JEFA CHAYITO', static:true },
+  { id:'mary', pal:'limpieza', x:120, y:110, name:'DOÑA MARY', min:96, max:270, vx:.35, line:0 },
+  { id:'chuy', pal:'patient', x:200, y:72, name:'DON CHUY (PACIENTE)', min:150, max:280, vx:-.22, line:0 },
+];
+const LINES = {
+  mary:[
+    '¡Cuidado, piso mojado! Por eso traigo mi letrero amarillo. Piso seco = paciente sin chichón.',
+    'Los cables van en su lugar, no atravesados en el pasillo como víboras.',
+    'Yo también me lavo las manos en los 5 momentos. Bueno, en 4, el de la tarea aséptica no me toca.',
+  ],
+  chuy:[
+    '¿Alguien ha visto mi pulsera? Sin ella solo soy "el de la cama 12"… ¡y eso NO es un identificador!',
+    'Me quisieron dar la pastilla de mi vecino. Menos mal que me preguntaron nombre Y fecha de nacimiento.',
+    'Me dijeron que no me levante solo. Pero el suero y yo somos un equipo. … Bueno, ya, llamo a la enfermera.',
+  ],
+};
+function medalsCount(){ return ROOMS.filter(r => save.done[r.id]).length; }
+function renderMedals(){
+  const m = $('#medals'); m.innerHTML = '';
+  ROOMS.forEach(r => { const d = el('div','medal'+(save.done[r.id]?' on':''), r.id); d.title = r.title; m.appendChild(d); });
+}
+
+function solid(x,y){ // feet box
+  const fx = x+2, fy = y+11, fw = 8, fh = 5;
+  if (fx < 0 || fx+fw > 302 || fy < 50 || fy+fh > 144) return true;
+  return DECOS.some(d => fx < d.x+d.w && fx+fw > d.x && fy < d.y+d.h && fy+fh > d.y);
+}
+function nearby(){
+  const px = player.x + 6, fy = player.y + 16;
+  for (const d of DOORS){
+    if (Math.abs(px - d.cx) <= 11){
+      if (d.side==='top' && player.y <= 40) return { type:'door', d };
+      if (d.side==='bottom' && fy >= 141) return { type:'door', d };
+    }
+  }
+  if (player.x >= 286 && fy > 82 && fy < 124) return { type:'boss' };
+  for (const n of NPCS){ if (Math.hypot(n.x - player.x, n.y - player.y) < 20) return { type:'npc', n }; }
+  if (player.x > 244 && player.y < 52) return { type:'tortas' };
+  return null;
+}
+function interact(it){
+  it = it || nearby(); if (!it) return;
+  if (it.type === 'door'){ sfx.door(); openRoom(it.d.room); }
+  else if (it.type === 'boss'){
+    const c = medalsCount();
+    if (c < 8) dialog([[ 'PUERTA: AUDITORÍA', `🔒 Aquí espera el temible AUDITOR DE CERTIFICACIÓN. Necesitas las 8 medallas para entrar. Llevas ${c}/8.` ]]);
+    else { sfx.boss(); openBoss(); }
+  }
+  else if (it.type === 'tortas'){
+    dialog([[ 'CARRITO DE TORTAS AHOGADAS', save.boss ? '¡ABIERTO! Ganaste tu torta, guardián. Pero antes… higiene de manos. Los 5 momentos no aplican a la torta, pero tu mamá sí.' : 'CERRADO. "Vuelva cuando termine las 8 Acciones Esenciales y venza al Auditor". — La Gerencia' ]]);
+  }
+  else if (it.type === 'npc'){
+    const n = it.n;
+    if (n.id === 'jefa'){
+      const c = medalsCount();
+      const lines = c === 0 ? introLines() :
+        c < 8 ? [[ 'JEFA CHAYITO', `Llevas ${c}/8 medallas. ${c>=4?'¡Vas muy bien! ':''}Cada puerta es una Acción Esencial. ¡Sigue así!` ]] :
+        save.boss ? [[ 'JEFA CHAYITO', '¡Venciste al Auditor! Ya puedes ir por tu torta ahogada. Y no olvides: la seguridad del paciente se practica en cada turno.' ]] :
+        [[ 'JEFA CHAYITO', '¡Tienes las 8 medallas! El Auditor te espera al fondo del pasillo, a la derecha. Respira hondo.' ]];
+      dialog(lines);
+    } else {
+      const L = LINES[n.id]; dialog([[ n.name, L[n.line % L.length] ]]); n.line++;
+    }
+  }
+}
+function introLines(){ return [
+  ['JEFA CHAYITO','¡Bienvenido al Civil, residente! Soy la Jefa Chayito: 32 años de guardias y jamás he perdido una pulsera.'],
+  ['JEFA CHAYITO','Para terminar tu turno debes dominar las 8 ACCIONES ESENCIALES para la Seguridad del Paciente.'],
+  ['JEFA CHAYITO','Cada puerta del pasillo es una acción. Gana sus medallas y enfrenta al temible AUDITOR DE CERTIFICACIÓN, al fondo a la derecha.'],
+  ['JEFA CHAYITO','Y no: no hay tortas ahogadas hasta que acabes. ¡Ánimo!'],
+]; }
+
+/* dialog */
+let dq = [], dqCb = null;
+function dialog(lines, cb){ dq = lines.slice(); dqCb = cb || null; mode = 'dialog'; showLine(); }
+function showLine(){
+  const d = $('#dialog');
+  if (!dq.length){ d.style.display = 'none'; mode = 'world'; if (dqCb) { const f = dqCb; dqCb = null; f(); } return; }
+  const [who, txt] = dq.shift(); sfx.blip();
+  d.querySelector('.who').textContent = who; d.querySelector('.txt').textContent = txt; d.style.display = 'block';
+}
+$('#dialog').addEventListener('click', e => { e.stopPropagation(); showLine(); });
+
+/* input */
+const KMAP = { ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft:'left', KeyA:'left', ArrowRight:'right', KeyD:'right', Space:'a', Enter:'a', KeyZ:'a' };
+window.addEventListener('keydown', e => {
+  const k = KMAP[e.code]; if (!k) return;
+  if (mode === 'room') return;
+  e.preventDefault();
+  if (k === 'a' && !e.repeat){ pressA(); return; }
+  keys[k] = true; auto = null;
+});
+window.addEventListener('keyup', e => { const k = KMAP[e.code]; if (k) keys[k] = false; });
+function pressA(){
+  if (mode === 'title') return startGame();
+  if (mode === 'dialog') return showLine();
+  if (mode === 'world') interact();
+}
+document.querySelectorAll('#pad [data-k]').forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); if (k === 'a') pressA(); else { keys[k] = true; auto = null; } });
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => b.addEventListener(ev, () => { if (k !== 'a') keys[k] = false; }));
+});
+cv.addEventListener('pointerdown', e => {
+  if (mode === 'dialog') return showLine();
+  if (mode !== 'world') return;
+  const r = cv.getBoundingClientRect(); const x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
+  for (const d of DOORS){
+    if (Math.abs(x - d.cx) < 15 && ((d.side==='top' && y < 50) || (d.side==='bottom' && y > 142))){
+      auto = { tx: d.cx - 6, ty: d.side==='top' ? 34 : 128, then: { type:'door', d } }; return;
+    }
+  }
+  if (x > 300 && y > 70 && y < 124){ auto = { tx: 290, ty: 88, then:{ type:'boss' } }; return; }
+  for (const n of NPCS){ if (Math.abs(x - (n.x+6)) < 10 && Math.abs(y - (n.y+8)) < 12){ auto = { tx: n.x + (player.x < n.x ? -14 : 14), ty: n.y, then:{ type:'npc', n } }; return; } }
+  if (x > 248 && y < 60){ auto = { tx: 262, ty: 46, then:{ type:'tortas' } }; return; }
+  auto = { tx: Math.max(0, Math.min(290, x - 6)), ty: Math.max(34, Math.min(128, y - 12)), then:null };
+});
+
+function tryMove(dx, dy){
+  let moved = false;
+  if (dx && !solid(player.x + dx, player.y)) { player.x += dx; moved = true; }
+  if (dy && !solid(player.x, player.y + dy)) { player.y += dy; moved = true; }
+  return moved;
+}
+function update(){
+  NPCS.forEach(n => {
+    if (n.static) return;
+    if (mode === 'world' && Math.hypot(n.x-player.x, n.y-player.y) < 18) return; // wait for chat
+    n.x += n.vx; if (n.x < n.min || n.x > n.max) { n.vx *= -1; n.x = Math.max(n.min, Math.min(n.max, n.x)); }
+    n.anim = (n.anim || 0) + 1;
+  });
+  if (mode !== 'world') { player.moving = false; return; }
+  const sp = 1.3; let dx = 0, dy = 0;
+  if (keys.left) dx -= sp; if (keys.right) dx += sp; if (keys.up) dy -= sp; if (keys.down) dy += sp;
+  if (auto){
+    // walk through the middle lane to avoid decorations
+    const lane = 88;
+    const needLane = Math.abs(player.x - auto.tx) > 2 && (player.y < 60 || player.y > 112);
+    const goalY = needLane ? lane : (Math.abs(player.x - auto.tx) > 2 ? player.y : auto.ty);
+    const goalX = needLane ? player.x : auto.tx;
+    if (Math.abs(goalX - player.x) > 1) dx = Math.sign(goalX - player.x) * sp;
+    else if (Math.abs(goalY - player.y) > 1) dy = Math.sign(goalY - player.y) * sp;
+    else if (!needLane && Math.abs(player.x - auto.tx) <= 1) { const t = auto.then; auto = null; if (t) { const it = nearby(); interact(it && it.type === t.type ? it : t); } return; }
+  }
+  if (dx || dy){
+    const moved = tryMove(dx, dy);
+    if (!moved && auto){ // stuck: give up gracefully
+      auto.stuck = (auto.stuck||0) + 1; if (auto.stuck > 30) auto = null;
+    }
+    player.moving = moved;
+    if (Math.abs(dx) > Math.abs(dy)) { player.dir = 'side'; player.flip = dx < 0; } else if (dy) { player.dir = dy < 0 ? 'up' : 'down'; }
+    player.anim++;
+    // walking into a door enters it
+    if (!auto && !moved){ const it = nearby(); if (it && it.type==='door' && ((it.d.side==='top' && dy<0) || (it.d.side==='bottom' && dy>0))) { keys.up = keys.down = false; interact(it); } }
+  } else player.moving = false;
+}
+
+/* ============ DRAW WORLD ============ */
+function R(c,x,y,w,h){ ctx.fillStyle = c; ctx.fillRect(x|0,y|0,w|0,h|0); }
+const plain = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+function text(t,x,y,c='#1a1c2c',size=8,align='center'){ t = plain(t); ctx.font = size+'px "Press Start 2P"'; ctx.textAlign = align; ctx.textBaseline = 'top'; ctx.fillStyle = c; ctx.fillText(t, x, y); }
+let tick = 0;
+function drawWorld(){
+  tick++;
+  // floor
+  for (let ty = 3; ty < 9; ty++) for (let tx = 0; tx < 19; tx++){
+    R(((tx+ty)&1) ? '#e9e3d3' : '#ddd5c1', tx*16, ty*16, 16, 16);
+  }
+  R('#cfc6ae', 0, 48, 304, 2);
+  // guide line on floor
+  for (let x = 4; x < 300; x += 12) R('#7fb7be', x, 95, 6, 2);
+  // top wall
+  R('#7fb7be', 0, 0, 304, 48); R('#5a8f96', 0, 36, 304, 12); R('#3a6a70', 0, 46, 304, 2);
+  R('#94c9cf', 0, 0, 304, 3);
+  // bottom wall
+  R('#3a6a70', 0, 144, 304, 2); R('#5a8f96', 0, 146, 304, 30); R('#7fb7be', 0, 146, 304, 6);
+  // right wall
+  R('#4a7a80', 304, 0, 16, 176); R('#2d5a60', 304, 0, 2, 176);
+  // boss door
+  const unlocked = medalsCount() >= 8;
+  R('#1a1c2c', 305, 74, 15, 44); R(unlocked ? '#b13e53' : '#5a2a35', 307, 76, 13, 40);
+  R('#ffcd75', 309, 94, 3, 4);
+  if (!unlocked){ R('#c0cbdc', 310, 82, 7, 6); R('#8b9bb4', 311, 79, 5, 4); R('#5a2a35', 312, 80, 3, 3); }
+  else if ((tick>>4)&1){ text('!', 313, 60, '#ffcd75', 8); }
+  // doors
+  DOORS.forEach(d => {
+    const done = save.done[d.room.id];
+    if (d.side === 'top'){
+      R('#1a1c2c', d.cx-14, 13, 28, 35); R(d.room.color, d.cx-12, 15, 24, 33);
+      R('#0003', d.cx, 15, 1, 33); R('#cfe7f0', d.cx-8, 20, 6, 8); R('#cfe7f0', d.cx+3, 20, 6, 8);
+      R('#ffcd75', d.cx-10, 33, 2, 3); R('#ffcd75', d.cx+8, 33, 2, 3);
+      R('#f4f4f4', d.cx-12, 2, 24, 10); R('#1a1c2c', d.cx-12, 11, 24, 1);
+      text(String(d.room.id), d.cx, 3, '#1a1c2c', 8);
+      if (done){ R('#ffcd75', d.cx+9, 0, 8, 8); R('#1a1c2c', d.cx+9, 8, 8, 1); text('★', d.cx+13, 0, '#b13e53', 8); }
+    } else {
+      R('#1a1c2c', d.cx-14, 144, 28, 32); R(d.room.color, d.cx-12, 146, 24, 30);
+      R('#0003', d.cx, 146, 1, 30); R('#cfe7f0', d.cx-8, 156, 6, 8); R('#cfe7f0', d.cx+3, 156, 6, 8);
+      R('#f4f4f4', d.cx-6, 166, 12, 10); text(String(d.room.id), d.cx, 167, '#1a1c2c', 8);
+      if (done){ R('#ffcd75', d.cx+9, 146, 8, 8); text('★', d.cx+13, 146, '#b13e53', 8); }
+    }
+  });
+  // short labels on walls
+  ctx.globalAlpha = .85;
+  DOORS.forEach(d => { if (d.side==='top') text(d.room.short, d.cx, 50, '#3a6a70', 5); });
+  ctx.globalAlpha = 1;
+  // decorations
+  DECOS.forEach(drawDeco);
+  // wet floor sign following Mary
+  const mary = NPCS[1];
+  // actors sorted by y
+  const actors = NPCS.map(n => ({ y:n.y, draw:() => drawNPC(n) }));
+  actors.push({ y:player.y, draw: drawPlayer });
+  actors.sort((a,b) => a.y - b.y).forEach(a => a.draw());
+  // prompt
+  if (mode === 'world'){
+    const it = nearby();
+    if (it){
+      const label = it.type==='door' ? 'A: ENTRAR' : it.type==='boss' ? 'A: AUDITORÍA' : 'A: HABLAR';
+      const bx = Math.max(30, Math.min(270, player.x + 6)), by = Math.max(2, player.y - 14 + (((tick>>4)&1)?-1:0));
+      ctx.font = '5px "Press Start 2P"'; const w = ctx.measureText(plain(label)).width + 8;
+      R('#1a1c2c', bx - w/2 - 1, by - 1, w + 2, 11); R('#f4f4f4', bx - w/2, by, w, 9);
+      text(label, bx, by + 2, '#1a1c2c', 5);
+      if (it.type === 'door'){ // room name tooltip
+        const t = 'AE ' + it.d.room.id + ': ' + it.d.room.title.split('· ')[1].toUpperCase();
+        ctx.font = '5px "Press Start 2P"'; const tw = Math.min(300, ctx.measureText(plain(t)).width + 10);
+        const ty = it.d.side === 'top' ? 60 : 118;
+        R('#1a1c2cdd', 160 - tw/2, ty, tw, 12); text(t, 160, ty + 3, '#ffcd75', 5);
+      }
+    }
+  }
+}
+function drawDeco(d){
+  const { x, y } = d;
+  if (d.k === 'plant'){ R('#733e39', x+3, y+4, 8, 8); R('#1a1c2c', x+3, y+11, 8, 1); R('#38b764', x, y-8, 14, 10); R('#257179', x+3, y-12, 8, 6); R('#a7f070', x+2, y-6, 3, 3); }
+  if (d.k === 'fountain'){ R('#c0cbdc', x, y-6, 14, 16); R('#8b9bb4', x, y+8, 14, 2); R('#5b8bd4', x+3, y-4, 8, 3); R('#1a1c2c', x, y+10, 14, 1); }
+  if (d.k === 'bench'){ R('#a05b30', x, y-4, 28, 4); R('#733e39', x, y, 28, 4); R('#1a1c2c', x+2, y+4, 2, 5); R('#1a1c2c', x+24, y+4, 2, 5); }
+  if (d.k === 'tortas'){
+    R('#b13e53', x, y-10, 36, 6); for (let i=0;i<36;i+=6) R('#f4f4f4', x+i, y-10, 3, 6);
+    R('#c98a3c', x, y-4, 36, 14); R('#1a1c2c', x, y+10, 36, 1); R('#1a1c2c', x+4, y+11, 4, 4); R('#1a1c2c', x+28, y+11, 4, 4);
+    R('#e07b39', x+5, y, 10, 5); R('#c0394b', x+5, y+3, 10, 2); R('#e07b39', x+20, y, 10, 5); R('#c0394b', x+20, y+3, 10, 2);
+    text(save.boss ? 'ABIERTO' : 'TORTAS', x+18, y-18, save.boss ? '#38b764' : '#f4f4f4', 5);
+  }
+  if (d.k === 'wheel'){ R('#3b5dc9', x+2, y, 10, 8); R('#3b5dc9', x+2, y+6, 4, 8); R('#1a1c2c', x, y+8, 10, 8); R('#8b9bb4', x+2, y+10, 6, 4); R('#1a1c2c', x+12, y+12, 4, 4); }
+  if (d.k === 'stretch'){ R('#8b9bb4', x, y, 32, 3); R('#f4f4f4', x, y-4, 32, 5); R('#9fd3e8', x+2, y-5, 8, 3); R('#1a1c2c', x+2, y+3, 3, 6); R('#1a1c2c', x+27, y+3, 3, 6); }
+}
+function drawSprite(rows, pal, x, y, flip){
+  const c = spriteCanvas(rows, pal, 1);
+  if (flip){ ctx.save(); ctx.translate(Math.round(x) + 12, Math.round(y)); ctx.scale(-1, 1); ctx.drawImage(c, 0, 0); ctx.restore(); }
+  else ctx.drawImage(c, Math.round(x), Math.round(y));
+}
+function shadow(x,y){ ctx.fillStyle = '#0002'; ctx.fillRect(Math.round(x)+2, Math.round(y)+15, 8, 2); }
+function drawPlayer(){
+  shadow(player.x, player.y);
+  const f = player.moving ? ((player.anim >> 3) & 1) : 0;
+  drawSprite(SPR[player.dir][f], PALS.player, player.x, player.y, player.dir === 'side' && player.flip);
+}
+function drawNPC(n){
+  shadow(n.x, n.y);
+  const moving = !n.static && Math.abs(n.vx) > 0;
+  const f = moving ? (((n.anim||0) >> 4) & 1) : 0;
+  const dir = n.static ? 'down' : 'side';
+  drawSprite(SPR[dir][f], PALS[n.pal], n.x, n.y, !n.static && n.vx < 0);
+  if (n.id === 'mary'){ // mop + sign
+    const mx = n.vx > 0 ? n.x - 4 : n.x + 14;
+    R('#a05b30', mx, n.y + 4, 1, 12); R('#c0cbdc', mx - 2, n.y + 15, 5, 2);
+    const sx = n.vx > 0 ? n.x - 14 : n.x + 20;
+    R('#ffcd75', sx, n.y + 6, 7, 10); R('#1a1c2c', sx + 3, n.y + 8, 1, 4); R('#1a1c2c', sx + 3, n.y + 13, 1, 1);
+    R('#5b8bd4aa', n.x - 6, n.y + 16, 24, 2);
+  }
+  if (n.id === 'chuy'){ // IV pole
+    const ix = n.vx > 0 ? n.x + 14 : n.x - 3;
+    R('#8b9bb4', ix, n.y - 2, 1, 18); R('#cfe7f0', ix - 2, n.y - 2, 5, 6); R('#1a1c2c', ix - 2, n.y + 16, 5, 1);
+  }
+  if (n.id === 'jefa' && medalsCount() === 0 && ((tick >> 5) & 1)) text('!', n.x + 6, n.y - 10, '#ffcd75', 8);
+}
+
+/* ============ TITLE ============ */
+function drawFacade(){
+  const c = $('#facade'), x = c.getContext('2d');
+  const r = (col,a,b,w,h) => { x.fillStyle = col; x.fillRect(a,b,w,h); };
+  const sky = ['#2b1d3d','#4a2650','#7a3463','#b44a5f','#e0704f','#f7a35c'];
+  sky.forEach((col,i) => r(col, 0, i*7, 160, 7));
+  r('#ffd59e', 0, 42, 160, 4);
+  [[12,6],[30,10],[120,4],[145,12],[60,3],[95,8]].forEach(([a,b]) => r('#fff8', a, b, 1, 1));
+  r('#fff3c4', 128, 30, 8, 8); r('#ffd59e', 127, 31, 10, 6);
+  // building
+  r('#d6c28f', 8, 30, 144, 34); r('#e8d8b0', 8, 30, 144, 3);
+  for (let i = 0; i < 14; i++){ r('#e3d0a0', 66 - i*1.4 - 10, 30 - i, 48 + i*2.8 - 28 + 8, 1); }
+  r('#e8d8b0', 54, 18, 52, 12); r('#c9b27a', 54, 28, 52, 2);
+  r('#7a1f2b', 74, 20, 12, 6); r('#ffcd75', 78, 21, 4, 4);
+  for (let cx = 12; cx < 150; cx += 10){
+    r('#f0e4c2', cx, 34, 3, 28);
+    if (cx < 145){ r('#4a3b2a', cx + 4, 40, 5, 10); r('#4a3b2a', cx + 5, 39, 3, 1); r('#ffcd75aa', cx + 5, 43, 3, 3); }
+  }
+  r('#3a2a1c', 72, 48, 16, 16); r('#5a4632', 74, 50, 12, 14); r('#3a2a1c', 79, 50, 1, 14);
+  r('#4f7a3a', 0, 64, 160, 8); r('#a8a29a', 66, 64, 28, 8);
+  // palms
+  [[20],[140]].forEach(([p]) => { r('#6b4a2a', p, 46, 2, 18); r('#3e8948', p-6, 44, 14, 3); r('#3e8948', p-4, 41, 3, 4); r('#3e8948', p+3, 41, 3, 4); });
+  const s1 = spriteCanvas(SPR.down[0], PALS.player, 1), s2 = spriteCanvas(SPR.down[0], PALS.jefa, 1);
+  x.drawImage(s1, 62, 54); x.drawImage(s2, 88, 54);
+}
+function startGame(){
+  $('#title').style.display = 'none'; mode = 'world'; sfx.ok();
+  if (!save.intro){ save.intro = true; persist(); setTimeout(() => dialog(introLines()), 300); }
+}
+$('#startBtn').onclick = startGame;
+$('#reset').onclick = () => {
+  if (!confirm('¿Borrar tu progreso y empezar de nuevo?')) return;
+  save = { done:{}, boss:false, intro:false, name:'' }; persist(); renderMedals();
+  player.x = 28; player.y = 84; $('#title').style.display = 'flex'; mode = 'title';
+};
+
+/* ============ ROOMS ============ */
+const room = $('#room'), body = $('#rbody');
+let RUN = null;
+function openRoom(r){
+  mode = 'room'; Object.keys(keys).forEach(k => keys[k] = false);
+  RUN = { r, si:-1, mistakes:0, li:0 };
+  $('#panel').style.setProperty('--rc', r.color);
+  $('#rtitle').textContent = r.title;
+  room.classList.add('show'); room.scrollTop = 0;
+  renderIntro();
+}
+function closeRoom(){ room.classList.remove('show'); mode = 'world'; RUN = null; BOSS = null; stopLoops(); renderMedals(); }
+$('#rclose').onclick = closeRoom;
+function setProg(){ $('#rprog').textContent = RUN.si < 0 ? 'INTRO' : `${Math.min(RUN.si+1, RUN.r.stages.length)}/${RUN.r.stages.length}`; }
+function npcBlock(pal, who, html){
+  const w = el('div','npc'); w.appendChild(portrait(pal, 7));
+  const b = el('div','bubble', `<div class="who">${who}</div>${html}`); w.appendChild(b); return w;
+}
+function renderIntro(){
+  setProg(); body.innerHTML = '';
+  const r = RUN.r;
+  body.appendChild(npcBlock(r.npc, r.who, r.intro[RUN.li]));
+  const last = RUN.li >= r.intro.length - 1;
+  const b = el('button','next', last ? '¡VAMOS! ▶' : 'SIGUIENTE ▶');
+  b.onclick = () => { sfx.blip(); if (last) nextStage(); else { RUN.li++; renderIntro(); } };
+  body.appendChild(b); b.focus();
+}
+function nextStage(){
+  stopLoops();
+  RUN.si++; setProg(); room.scrollTop = 0;
+  if (RUN.si >= RUN.r.stages.length) return renderResult();
+  const st = RUN.r.stages[RUN.si];
+  body.innerHTML = '';
+  STAGES[st.type](st);
+}
+function addNext(label='CONTINUAR ▶', fn=nextStage){ const b = el('button','next', label); b.onclick = () => { sfx.blip(); fn(); }; body.appendChild(b); setTimeout(()=>b.scrollIntoView({behavior:'smooth',block:'nearest'}),50); return b; }
+function feedback(ok, html, host=body){
+  const old = host.querySelector('.fb'); if (old) old.remove();
+  const f = el('div','fb '+(ok?'ok':'bad'), `<b>${ok?'¡CORRECTO!':'¡UY!'}</b>${html}`);
+  host.appendChild(f); return f;
+}
+const STAGES = {};
+STAGES.choice = (st, host=body, onDone=null, isBoss=false) => {
+  if (st.pre) host.appendChild(el('div','', st.pre));
+  host.appendChild(el('div','q', st.q));
+  const box = el('div','opts'); host.appendChild(box);
+  const opts = shuffle(st.opts.slice());
+  const btns = [];
+  opts.forEach(o => {
+    const b = el('button','opt', o.t); btns.push(b); box.appendChild(b);
+    b.onclick = () => {
+      if (b.disabled) return;
+      if (o.ok){
+        sfx.ok(); b.classList.add('right'); btns.forEach(x => x.disabled = true);
+        if (isBoss) return onDone(true);
+        feedback(true, o.fb || '', host); addNext();
+      } else {
+        sfx.bad(); b.classList.add('wrong'); b.disabled = true;
+        if (isBoss){ btns.forEach(x => x.disabled = true); const right = btns[opts.findIndex(z => z.ok)]; right.classList.add('right'); return onDone(false, o.fb); }
+        RUN.mistakes++; feedback(false, (o.fb || 'Intenta otra vez.') + ' <i>Intenta de nuevo.</i>', host);
+      }
+    };
+  });
+};
+STAGES.order = st => {
+  body.appendChild(el('div','q', st.q + '<small>Toca las opciones en el orden correcto.</small>'));
+  const seq = el('div','seq'); body.appendChild(seq);
+  const box = el('div','opts'); body.appendChild(box);
+  let idx = 0;
+  shuffle(st.items.slice()).forEach(t => {
+    const b = el('button','opt', t); box.appendChild(b);
+    b.onclick = () => {
+      if (t === st.items[idx]){
+        sfx.ok(); seq.appendChild(el('span','chip', `<i>${idx+1}</i>${t}`)); b.remove(); idx++;
+        const f = body.querySelector('.fb'); if (f) f.remove();
+        if (idx === st.items.length){ feedback(true, st.why); addNext(); }
+      } else {
+        sfx.bad(); RUN.mistakes++; b.classList.add('wrong'); setTimeout(() => b.classList.remove('wrong'), 350);
+        feedback(false, `"${t}" no va en el paso ${idx+1}. Piensa: ¿qué pasa primero?`);
+      }
+    };
+  });
+};
+STAGES.match = st => {
+  body.appendChild(el('div','q', st.q + '<small>Toca un electrolito y luego su color.</small>'));
+  const wrap = el('div','cols match'); body.appendChild(wrap);
+  const L = el('div','opts'), Rr = el('div','opts'); wrap.appendChild(L); wrap.appendChild(Rr);
+  let sel = null, done = 0;
+  const lb = shuffle(st.pairs.map((p,i)=>i)).map(i => { const b = el('button','opt', st.pairs[i][0]); b.dataset.i = i; L.appendChild(b); return b; });
+  const rb = shuffle(st.pairs.map((p,i)=>i)).map(i => { const b = el('button','opt', `<span class="swatch" style="background:${st.pairs[i][1]}"></span>${st.pairs[i][2]}`); b.dataset.i = i; Rr.appendChild(b); return b; });
+  lb.forEach(b => b.onclick = () => { if (b.disabled) return; sfx.blip(); lb.forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sel = b; });
+  rb.forEach(b => b.onclick = () => {
+    if (b.disabled) return;
+    if (!sel){ feedback(false, 'Primero toca un electrolito de la izquierda.'); return; }
+    if (sel.dataset.i === b.dataset.i){
+      sfx.ok(); [sel, b].forEach(x => { x.disabled = true; x.classList.remove('sel'); x.classList.add('right','done'); });
+      sel.innerHTML = `<span class="swatch" style="background:${st.pairs[+b.dataset.i][1]}"></span>` + sel.innerHTML;
+      sel = null; done++; const f = body.querySelector('.fb'); if (f) f.remove();
+      if (done === st.pairs.length){ feedback(true, st.why); addNext(); }
+    } else {
+      sfx.bad(); RUN.mistakes++; b.classList.add('wrong'); setTimeout(() => b.classList.remove('wrong'), 350);
+      feedback(false, `${st.pairs[+sel.dataset.i][0]} no es ${st.pairs[+b.dataset.i][2].toLowerCase()}. ¡Otra vez!`);
+    }
+  });
+};
+STAGES.sort = st => {
+  const items = shuffle(st.items.slice()); let k = 0;
+  const q = el('div','q', st.q); body.appendChild(q);
+  const stats = el('div','stats'); body.appendChild(stats);
+  const card = el('div','card'); body.appendChild(card);
+  const bk = el('div','buckets'); body.appendChild(bk);
+  const fbHost = el('div'); body.appendChild(fbHost);
+  const btns = st.buckets.map(([name,col],i) => { const b = el('button','bucket', name); b.style.background = col; bk.appendChild(b); b.onclick = () => choose(i, b); return b; });
+  function show(){ stats.innerHTML = `<span>TARJETA ${k+1}/${items.length}</span>`; card.innerHTML = `<div class="tag">CASO</div>${items[k].t}`; fbHost.innerHTML = ''; btns.forEach(b => b.disabled = false); }
+  function choose(i){
+    const it = items[k]; btns.forEach(b => b.disabled = true);
+    const ok = i === it.b; ok ? sfx.ok() : (sfx.bad(), RUN.mistakes++);
+    fbHost.innerHTML = '';
+    const f = feedback(ok, (ok ? '' : `Va en <b style="display:inline;font-family:inherit;font-size:inherit">${st.buckets[it.b][0]}</b>. `) + it.why, fbHost);
+    const nb = el('button','next', k < items.length - 1 ? 'SIGUIENTE TARJETA ▶' : 'CONTINUAR ▶'); fbHost.appendChild(nb);
+    nb.onclick = () => { sfx.blip(); k++; if (k < items.length) show(); else nextStage(); };
+    nb.focus({preventScroll:true}); setTimeout(()=>nb.scrollIntoView({behavior:'smooth',block:'nearest'}),30);
+  }
+  show();
+};
+
+/* ---- Germ arcade (AE 5) ---- */
+let loops = [];
+function stopLoops(){ loops.forEach(id => { clearInterval(id); cancelAnimationFrame(id); }); loops = []; }
+STAGES.germs = () => {
+  const GOAL = 18, DUR = 25;
+  body.appendChild(el('div','q', '¡Fricción con alcohol gel! Toca los bichos antes de que se escapen.<small>Meta: eliminar ' + GOAL + ' bichos en ' + DUR + ' segundos (la fricción con alcohol dura 20–30 s).</small>'));
+  const stats = el('div','stats', ''); body.appendChild(stats);
+  const bar = el('div','bar', '<div style="width:100%"></div>'); body.appendChild(bar);
+  const c = el('canvas','game'); c.width = 200; c.height = 120; body.appendChild(c);
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const startBtn = addNext('¡A FROTAR! ▶', run);
+  let germs = [], popped = 0, escaped = 0, t0 = 0, running = false, fx = [];
+  const COLS = ['#38b764','#a7f070','#8e5bb5','#e07b39','#5b8bd4'];
+  const NAMES = ['Staphy','Klebsi','E. coli-ín','Pseudo','C. diff'];
+  function drawHands(){
+    g.fillStyle = '#2a2d55'; g.fillRect(0,0,200,120);
+    for (let i=0;i<200;i+=10) { g.fillStyle = '#30335f'; g.fillRect(i,0,5,120); }
+    const hand = (ox, flip) => {
+      const P = (x,y,w,h,c) => { g.fillStyle = c; g.fillRect(flip ? ox + 70 - x - w : ox + x, y, w, h); };
+      P(10,50,52,50,'#f2b48a'); P(10,96,52,24,'#e3a070');
+      [[12,14],[24,8],[36,10],[48,18]].forEach(([fx,fy]) => { P(fx,fy,11,44,'#f2b48a'); P(fx+2,fy+2,7,6,'#f8d0b0'); });
+      P(58,58,14,30,'#f2b48a');
+      P(10,50,2,50,'#c98a5e'); P(60,50,2,50,'#c98a5e');
+    };
+    hand(18, false); hand(112, true);
+  }
+  function spawn(){ const i = Math.floor(Math.random()*COLS.length); germs.push({ x: 26 + Math.random()*150, y: 20 + Math.random()*80, born: performance.now(), life: 2400 - Math.min(1200, popped*40), c: COLS[i], n: NAMES[i], ph: Math.random()*6 }); }
+  function frame(now){
+    if (!running) return;
+    const el2 = (now - t0) / 1000;
+    drawHands();
+    germs = germs.filter(gm => { if (now - gm.born > gm.life){ escaped++; return false; } return true; });
+    germs.forEach(gm => {
+      const wob = Math.sin(now/120 + gm.ph) * 1.5;
+      const s = spriteCanvas(GERM, { G: gm.c }, 2);
+      g.drawImage(s, Math.round(gm.x - 8 + wob), Math.round(gm.y - 7));
+      const left = 1 - (now - gm.born)/gm.life; g.fillStyle = '#1a1c2c'; g.fillRect(gm.x-8, gm.y+9, 16, 2); g.fillStyle = left > .35 ? '#38b764' : '#e43b44'; g.fillRect(gm.x-8, gm.y+9, 16*left, 2);
+    });
+    fx = fx.filter(f => now - f.t < 400);
+    fx.forEach(f => { const a = (now - f.t)/400; g.fillStyle = '#f4f4f4'; for (let k=0;k<6;k++){ const ang = k*Math.PI/3; g.fillRect(f.x + Math.cos(ang)*a*14, f.y + Math.sin(ang)*a*14, 2, 2); } g.font = '6px "Press Start 2P"'; g.textAlign='center'; g.fillText('¡PUM!', f.x, f.y - 10 - a*8); });
+    bar.firstChild.style.width = Math.max(0, 100 - el2/DUR*100) + '%';
+    stats.innerHTML = `<span>🧴 ELIMINADOS: ${popped}/${GOAL}</span><span>😈 ESCAPARON: ${escaped}</span><span>⏱ ${Math.max(0, DUR - el2).toFixed(0)} s</span>`;
+    if (el2 >= DUR) return finish();
+    loops.push(requestAnimationFrame(frame));
+  }
+  c.addEventListener('pointerdown', e => {
+    if (!running) return;
+    const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) * 200 / r.width, y = (e.clientY - r.top) * 120 / r.height;
+    let hit = -1, best = 14;
+    germs.forEach((gm,i) => { const d = Math.hypot(gm.x - x, gm.y - y); if (d < best){ best = d; hit = i; } });
+    if (hit >= 0){ const gm = germs.splice(hit,1)[0]; popped++; sfx.pop(); fx.push({ x: gm.x, y: gm.y, t: performance.now() }); }
+  });
+  function run(){
+    startBtn.remove(); const f = body.querySelector('.fb'); if (f) f.remove();
+    germs = []; popped = 0; escaped = 0; fx = []; running = true; t0 = performance.now();
+    loops.push(setInterval(spawn, 520)); spawn(); spawn();
+    loops.push(requestAnimationFrame(frame));
+  }
+  function finish(){
+    running = false; stopLoops(); drawHands();
+    if (popped >= GOAL){ sfx.ok(); feedback(true, `¡Manos limpias! Eliminaste ${popped} bichos. Recuerda: alcohol gel 20–30 s, agua y jabón 40–60 s, con la técnica de la OMS (palmas, dorsos, entre dedos, pulgares y uñas).`); addNext(); }
+    else { sfx.bad(); RUN.mistakes++; feedback(false, `Solo eliminaste ${popped}/${GOAL}. Los bichos que se escapan… se van al siguiente paciente. 😬`); const b = addNext('REINTENTAR ↺', () => { b.remove(); run(); }); }
+  }
+  drawHands();
+};
+
+/* ---- Spot the hazards (AE 6) ---- */
+const HAZ = [
+  { id:'rail', r:[18,96,70,12], name:'Barandal abajo', why:'Si el paciente está en cama o camilla, los barandales SIEMPRE arriba (y verificar que funcionen).' },
+  { id:'wet', r:[104,112,46,18], name:'Piso mojado sin señal', why:'Piso seco y, si está mojado, señalización. ¡Doña Mary aprueba!' },
+  { id:'bell', r:[206,40,26,22], name:'Timbre fuera de alcance', why:'El timbre y la luz deben quedar al alcance del paciente.' },
+  { id:'wc', r:[150,80,40,46], name:'Silla de ruedas sin frenos', why:'Sillas de ruedas y camillas con frenos funcionales y puestos.' },
+  { id:'cable', r:[52,130,76,14], name:'Cables en el piso', why:'Cables y mobiliario en su lugar; el área de tránsito libre de obstáculos.' },
+  { id:'shoe', r:[10,116,30,14], name:'Pantuflas sueltas', why:'Se recomienda calzado cerrado y antiderrapante.' },
+  { id:'walk', r:[196,92,34,40], name:'Andadera lejos del paciente', why:'Acerca al paciente sus aditamentos: bastón, andadera, lentes…' },
+];
+const DECOY = [
+  { r:[150,10,40,32], m:'Es una ventana. Está cerrada. Todo bien. (Disfruta la vista a la Calzada.)' },
+  { r:[96,12,30,30], m:'Un cuadro de la Catedral de Guadalajara. Bonito y nada peligroso.' },
+  { r:[200,6,34,24], m:'La tele. Está pasando el Clásico Tapatío. No es un riesgo de caída… salvo emocional.' },
+  { r:[90,74,18,32], m:'El buró, en su lugar. Así debe estar.' },
+];
+STAGES.spot = () => {
+  body.appendChild(el('div','q', `Encuentra los ${HAZ.length} riesgos de caída en la habitación.<small>Toca cada peligro en la imagen.</small>`));
+  const stats = el('div','stats'); body.appendChild(stats);
+  const c = el('canvas','game'); c.width = 240; c.height = 150; body.appendChild(c);
+  const list = el('div','found'); body.appendChild(list);
+  const fbHost = el('div'); body.appendChild(fbHost);
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  const found = new Set(); let misses = 0;
+  const P = (col,x,y,w,h) => { g.fillStyle = col; g.fillRect(x,y,w,h); };
+  function draw(){
+    P('#cfe3e0',0,0,240,72); P('#b8d4d0',0,64,240,8); P('#e6dcc8',0,72,240,78);
+    for (let x=0;x<240;x+=16) P('#d6ccb6',x,72,1,78); for (let y=72;y<150;y+=14) P('#d6ccb6',0,y,240,1);
+    // window
+    P('#1a1c2c',150,10,40,32); P('#7ec4ff',152,12,36,28); P('#f4f4f4',169,12,2,28); P('#f4f4f4',152,25,36,2); P('#a7f070',152,34,36,6);
+    // painting: catedral
+    P('#733e39',96,12,30,30); P('#ffd59e',98,14,26,26); P('#e8d8b0',104,24,14,16); P('#3b5dc9',103,16,3,10); P('#3b5dc9',116,16,3,10); P('#ffcd75',104,14,1,3); P('#ffcd75',117,14,1,3); P('#5a4632',109,32,4,8);
+    // tv
+    P('#1a1c2c',200,6,34,24); P('#38b764',202,8,30,20); P('#f4f4f4',215,8,1,20); P('#f4f4f4',212,15,7,6); P('#38b764',213,16,5,4); P('#1a1c2c',215,30,4,4);
+    // call bell far on wall
+    P('#8b9bb4',214,44,12,14); P('#e43b44',217,47,6,6); P('#1a1c2c',220,58,1,12);
+    // bed
+    P('#8b9bb4',10,62,4,46); P('#8b9bb4',84,70,4,38);
+    P('#f4f4f4',12,72,74,16); P('#9fd3e8',12,84,74,6); P('#dfe3ee',14,66,18,10);
+    P('#f2b48a',16,64,10,8); P('#c2c3c7',15,62,12,4); P('#1a1c2c',19,67,1,1); P('#1a1c2c',23,67,1,1);
+    P('#9fd3e8',28,70,50,14); P('#b8e2f2',28,70,50,3);
+    P('#1a1c2c',14,90,72,2); P('#1a1c2c',16,92,2,16); P('#1a1c2c',80,92,2,16);
+    // rail DOWN (hanging low)
+    P('#5a6988',22,100,62,3); P('#5a6988',22,104,62,2); for (let x=26;x<84;x+=8) P('#5a6988',x,100,2,6);
+    // nightstand
+    P('#a05b30',90,76,18,30); P('#733e39',90,88,18,1); P('#ffcd75',97,81,4,2); P('#ffcd75',97,94,4,2);
+    P('#f4f4f4',94,70,6,6);
+    // slippers
+    P('#e07b39',12,120,10,5); P('#e07b39',26,122,10,5); P('#f4f4f4',12,120,10,1); P('#f4f4f4',26,122,10,1);
+    // puddle
+    P('#7ec4ff',108,116,38,10); P('#5b8bd4',112,120,30,4); P('#d8f0ff',114,117,8,2);
+    // cable squiggle
+    for (let i=0;i<72;i+=2){ P('#1a1c2c', 54+i, 136 + Math.round(Math.sin(i/5)*3), 2, 2); }
+    P('#8b9bb4',124,132,4,6);
+    // wheelchair
+    P('#3b5dc9',156,88,20,16); P('#3b5dc9',156,82,4,24); P('#1a1c2c',152,104,26,3);
+    P('#1a1c2c',152,104,20,20); P('#8b9bb4',156,108,12,12); P('#1a1c2c',160,112,4,4); P('#1a1c2c',180,118,6,6);
+    P('#e43b44',176,94,8,8); P('#f4f4f4',179,95,2,4); P('#f4f4f4',179,100,2,1);
+    // walker far away
+    P('#8b9bb4',200,96,26,3); P('#8b9bb4',200,96,3,34); P('#8b9bb4',223,96,3,34); P('#8b9bb4',200,112,26,2); P('#1a1c2c',199,128,5,3); P('#1a1c2c',222,128,5,3);
+    // found markers
+    HAZ.forEach((h,i) => { if (!found.has(h.id)) return; const [x,y,w,hh] = h.r; g.strokeStyle = '#38b764'; g.lineWidth = 2; g.strokeRect(x+1,y+1,w-2,hh-2); P('#38b764',x,y-1,9,9); g.fillStyle='#06210f'; g.font='6px "Press Start 2P"'; g.textAlign='left'; g.textBaseline='top'; g.fillText('✓',x+1,y); });
+    stats.innerHTML = `<span>⚠️ RIESGOS: ${found.size}/${HAZ.length}</span><span>🙃 FALSAS ALARMAS: ${misses}</span>`;
+  }
+  c.addEventListener('pointerdown', e => {
+    if (found.size === HAZ.length) return;
+    const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) * 240 / r.width, y = (e.clientY - r.top) * 150 / r.height;
+    const inR = ([a,b,w,h]) => x >= a && x <= a+w && y >= b && y <= b+h;
+    const h = HAZ.find(h => inR(h.r) && !found.has(h.id));
+    fbHost.innerHTML = '';
+    if (h){ found.add(h.id); sfx.ok(); list.appendChild(el('span','', h.name)); feedback(true, `<b style="display:inline;font-family:inherit;font-size:inherit">${h.name}.</b> ${h.why}`, fbHost); }
+    else if (HAZ.some(h => inR(h.r))){ sfx.blip(); }
+    else { const d = DECOY.find(d => inR(d.r)); misses++; sfx.bad(); feedback(false, d ? d.m : 'Ahí no hay nada peligroso. Sigue buscando.', fbHost); }
+    draw();
+    if (found.size === HAZ.length){ if (misses > 3) RUN.mistakes++; setTimeout(() => { feedback(true, '¡Habitación segura! Encontraste todos los riesgos. Doña Mary te invita un champurrado.', fbHost); addNext(); }, 250); }
+  });
+  draw();
+};
+
+function starsFor(m){ return m <= 1 ? 3 : m <= 4 ? 2 : 1; }
+function renderResult(){
+  const r = RUN.r, s = starsFor(RUN.mistakes);
+  const first = !save.done[r.id];
+  save.done[r.id] = Math.max(save.done[r.id] || 0, s); persist(); renderMedals(); sfx.medal();
+  $('#rprog').textContent = 'FIN';
+  body.innerHTML = `<div class="result">
+    <div class="bigmedal">${r.id}</div>
+    <div class="q" style="margin-top:10px">¡Medalla de la Acción Esencial ${r.id}!</div>
+    <div class="stars">${'★'.repeat(s)}<span class="off">${'★'.repeat(3-s)}</span></div>
+    <div style="color:var(--muted)">Errores: ${RUN.mistakes} ${s===3?'· ¡Impecable!':s===2?'· ¡Bien hecho!':'· Aprobado… ¡pero repásalo!'}</div>
+    <div class="dato"><h4>📋 DATO CLAVE PARA LLEVAR</h4><ul>${r.dato.map(d=>`<li>${d}</li>`).join('')}</ul></div>
+  </div>`;
+  const row = el('div','', ''); row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap';
+  const again = el('button','next','REPETIR ↺'); again.style.background = '#8b9bb4'; again.style.margin = '0'; again.onclick = () => { sfx.blip(); openRoom(r); };
+  const back = el('button','next', medalsCount() === 8 && first ? '¡AL AUDITOR! ▶' : 'VOLVER AL PASILLO ▶'); back.style.margin = '0';
+  back.onclick = () => { sfx.blip(); closeRoom(); if (medalsCount() === 8 && first) dialog([['JEFA CHAYITO','¡Tienes las 8 medallas! La puerta roja del fondo del pasillo ya está abierta. El Auditor te espera…']]); };
+  row.appendChild(again); row.appendChild(back); body.appendChild(row); back.focus({preventScroll:true});
+}
+
+/* ============ BOSS ============ */
+let BOSS = null;
+const TAUNTS = [
+  '¿Y la evidencia? ¿Dónde está la evidencia?',
+  'Muéstrame el expediente… con los DOS identificadores.',
+  'Aquí no se aceptan "es que siempre lo hemos hecho así".',
+  'Mi pluma roja tiene hambre…',
+  '¿Ese membrete tiene fecha y hora de instalación?',
+  'Tic, tac. La certificación no espera.',
+];
+function bossPool(){
+  const pool = [];
+  ROOMS.forEach(r => r.stages.forEach(st => { if (st.type === 'choice' && !st.pre) pool.push({ ...st, rid:r.id }); }));
+  return shuffle(pool);
+}
+function openBoss(){
+  mode = 'room'; Object.keys(keys).forEach(k => keys[k] = false);
+  RUN = null; BOSS = { hp:100, hearts:3, pool: bossPool(), qi:0 };
+  $('#panel').style.setProperty('--rc', '#7a1f2b');
+  $('#rtitle').textContent = 'Jefe final · El Auditor de Certificación';
+  room.classList.add('show'); room.scrollTop = 0; $('#rprog').textContent = 'BOSS';
+  body.innerHTML = '';
+  body.appendChild(npcBlock('auditor','EL AUDITOR DE CERTIFICACIÓN','Así que tú eres el residente que juntó las 8 medallas… Muy bien. Responde mis preguntas. Cada acierto me quita vida. Cada error te cuesta un corazón. <b>Tienes 3.</b>'));
+  addNext('¡QUE EMPIECE LA AUDITORÍA! ▶', bossQ);
+}
+function bossQ(){
+  if (!BOSS) return;
+  if (BOSS.qi >= BOSS.pool.length){ BOSS.pool = BOSS.pool.concat(bossPool()); }
+  const st = BOSS.pool[BOSS.qi++];
+  body.innerHTML = '';
+  const top = el('div','bossrow');
+  const p = portrait('auditor', 5); p.id = 'bossP'; top.appendChild(p);
+  const info = el('div',''); info.style.flex = '1';
+  info.innerHTML = `<div class="hp"><span>AUDITOR</span><div class="bar"><div style="width:${BOSS.hp}%"></div></div><span>${BOSS.hp}</span></div>
+    <div class="hearts">${'♥'.repeat(BOSS.hearts)}<span style="color:#3a3d6b">${'♥'.repeat(3-BOSS.hearts)}</span></div>
+    <div style="color:var(--muted);font-size:19px">"${TAUNTS[Math.floor(Math.random()*TAUNTS.length)]}"</div>`;
+  top.appendChild(info); body.appendChild(top);
+  const tag = el('div','', `<span class="rp" style="font-family:'Press Start 2P';font-size:9px;background:#0006;padding:4px 6px">PREGUNTA DE LA AE ${st.rid}</span>`); body.appendChild(tag);
+  const host = el('div'); body.appendChild(host);
+  STAGES.choice(st, host, (ok, why) => {
+    if (ok){
+      BOSS.hp = Math.max(0, BOSS.hp - 10); const bp = $('#bossP'); bp.classList.add('hit');
+      info.querySelector('.bar > div').style.width = BOSS.hp + '%'; info.querySelector('.hp span:last-child').textContent = BOSS.hp;
+      feedback(true, ['¡Golpe crítico!','¡Directo al checklist!','¡El Auditor tambalea!','¡Evidencia impecable!'][Math.floor(Math.random()*4)], host);
+      setTimeout(() => BOSS && (BOSS.hp <= 0 ? bossWin() : bossQ()), 1100);
+    } else {
+      BOSS.hearts--; info.querySelector('.hearts').innerHTML = `${'♥'.repeat(BOSS.hearts)}<span style="color:#3a3d6b">${'♥'.repeat(3-BOSS.hearts)}</span>`;
+      feedback(false, (why || '') + ' <i>La respuesta correcta está en verde.</i>', host);
+      const b = el('button','next', BOSS.hearts <= 0 ? 'CONTINUAR ▶' : 'SIGUIENTE ▶'); host.appendChild(b);
+      b.onclick = () => { sfx.blip(); BOSS.hearts <= 0 ? bossLose() : bossQ(); };
+    }
+  }, true);
+}
+function bossLose(){
+  sfx.boss(); body.innerHTML = '';
+  body.appendChild(npcBlock('auditor','EL AUDITOR DE CERTIFICACIÓN','Hmm… "No conformidad mayor". Pero no te desanimes: repasa los datos clave de cada puerta y vuelve. Aquí estaré. Con mi pluma roja.'));
+  const row = el('div',''); row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap';
+  const a = el('button','next','REINTENTAR ↺'); a.style.margin = '0'; a.onclick = () => { sfx.blip(); openBoss(); };
+  const b = el('button','next','VOLVER AL PASILLO'); b.style.margin = '0'; b.style.background = '#8b9bb4'; b.onclick = closeRoom;
+  row.appendChild(a); row.appendChild(b); body.appendChild(row);
+}
+function bossWin(){
+  sfx.medal(); setTimeout(sfx.medal, 600);
+  save.boss = true; persist(); BOSS = null;
+  body.innerHTML = '';
+  body.appendChild(npcBlock('auditor','EL AUDITOR (DERROTADO)','…Impresionante. Ni una pulsera fuera de lugar. Declaro este turno: <b>CERTIFICADO</b>. Ve por tu torta ahogada, te la ganaste.'));
+  body.appendChild(el('div','q','Escribe tu nombre para tu certificado:'));
+  const inp = el('input','name'); inp.placeholder = 'Nombre completo (¡y sin abreviaturas!)'; inp.value = save.name || ''; body.appendChild(inp);
+  addNext('GENERAR CERTIFICADO ▶', () => { save.name = inp.value.trim() || 'Guardián Anónimo'; persist(); showCert(); });
+}
+function showCert(){
+  $('#rprog').textContent = '🏆';
+  const d = new Date(); const fecha = d.toLocaleDateString('es-MX', { day:'numeric', month:'long', year:'numeric' });
+  const total = ROOMS.reduce((a,r) => a + (save.done[r.id]||0), 0);
+  body.innerHTML = `<div class="cert">
+    <div style="font-size:44px">🏅</div>
+    <h2>CERTIFICADO DE<br>GUARDIÁN DE LA SEGURIDAD DEL PACIENTE</h2>
+    <div>Se otorga a</div>
+    <div class="nm">${save.name.replace(/[<>&]/g,'')}</div>
+    <div>por dominar las 8 Acciones Esenciales para la Seguridad del Paciente<br>y derrotar al temible Auditor de Certificación en <b>Civil Quest</b>.</div>
+    <ol>${ROOMS.map(r=>`<li>${r.title.split('· ')[1]} ${'★'.repeat(save.done[r.id]||0)}</li>`).join('')}</ol>
+    <div>Estrellas: <b>${total}/24</b> · ${fecha}</div>
+    <div style="margin-top:10px;font-size:17px;color:#7a5a2a">Juego educativo no oficial · Contenido basado en AESP (CSG/DGCES, 2023)</div>
+  </div>`;
+  const row = el('div',''); row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap';
+  const p = el('button','next','🖨 IMPRIMIR'); p.style.margin = '0'; p.onclick = () => window.print();
+  const b = el('button','next','VOLVER AL PASILLO ▶'); b.style.margin = '0'; b.onclick = () => { closeRoom(); dialog([['JEFA CHAYITO','¡Lo lograste! Ya abrió el carrito de tortas ahogadas. Y recuerda: estas 8 acciones se practican en CADA turno, no solo en el juego.']]); };
+  row.appendChild(p); row.appendChild(b); body.appendChild(row);
+}
+
+/* ============ LOOP ============ */
+function loop(){ update(); if (mode !== 'title') drawWorld(); requestAnimationFrame(loop); }
+renderMedals(); drawFacade();
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { drawFacade(); });
+loop();
+</script>
+</body>
+</html>
